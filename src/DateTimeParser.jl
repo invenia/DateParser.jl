@@ -342,12 +342,9 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 end
                 i += 1
                 res["tzoffset"] *= signal
-
                 # Look for a timezone name between parenthesis
                 if i+3 <= len && lowercase(tokens[i]) in jump && tokens[i+1] == "(" &&
-                        tokens[i+3] == ")" && 3 <= length(tokens[i+2]) <= 5 &&
-                        ismatch(r"^[A-Z]$", tokens[i+2])
-
+                        tokens[i+3] == ")" && ismatch(r"^\w*$", tokens[i+2])
                     # -0300 (BRST)
                     res["tzname"] = tokens[i+2]
                     i += 4
@@ -507,7 +504,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
     elseif !haskey(res, "tzname")
         res["timezone"] = FixedTimeZone("local",res["tzoffset"])
     else
-        res["timezone"] = FixedTimeZone(re["tzname"], res["tzoffset"])
+        res["timezone"] = FixedTimeZone(res["tzname"], res["tzoffset"])
     end
 
     return ZonedDateTime(DateTime(res["year"], res["month"], res["day"], res["hour"],
