@@ -310,11 +310,10 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 # right.
                 if i <= len && tokens[i] in ("+", "-")
                     tokens[i] = tokens[i] == "+" ? "-" : "+"
-                    res["tzoffset"] = nothing
-                    if haskey(utczone, res["tzname"])
+                    if lowercase(res["tzname"]) in utczone
                         # With something like GMT+3, the timezone
                         # is *not* GMT.
-                        res["tzname"] = nothing
+                        delete!(res, "tzname")
                     end
                 end
 
@@ -323,17 +322,21 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 signal = tokens[i] == "+" ? 1 : -1
                 i += 1
                 tokenlength = length(tokens[i])
-                if tokenlength == 4
-                    # -0300
-                    res["tzoffset"] = parse(Int, tokens[i][1:2])*3600+parse(Int, tokens[i][2:end])*60
-                elseif i+1 <= len && tokens[i+1] == ":"
-                    # -03:00
-                    res["tzoffset"] = parse(Int, tokens[i])*3600+parse(Int, tokens[i+2])*60
-                    i += 2
-                elseif tokenlength <= 2
-                    # -[0]3
-                    res["tzoffset"] = parse(Int, tokens[i][1:2])*3600
-                else
+                try
+                    if tokenlength == 4
+                        # -0300
+                        res["tzoffset"] = parse(Int, tokens[i][1:2])*3600+parse(Int, tokens[i][2:end])*60
+                    elseif i+1 <= len && tokens[i+1] == ":"
+                        # -03:00
+                        res["tzoffset"] = parse(Int, tokens[i])*3600+parse(Int, tokens[i+2])*60
+                        i += 2
+                    elseif tokenlength <= 2
+                        # -[0]3
+                        res["tzoffset"] = parse(Int, tokens[i])*3600
+                    else
+                        error("Faild to read timezone offset after +/-")
+                    end
+                catch
                     error("Faild to read timezone offset after +/-")
                 end
                 i += 1
