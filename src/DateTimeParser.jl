@@ -320,9 +320,10 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
             # Check for a numbered timzone
             elseif haskey(res, "hour") && tokens[i] in ("+", "-")
                 signal = tokens[i] == "+" ? 1 : -1
-                i += 1
-                tokenlength = length(tokens[i])
                 try
+                    i += 1
+                    tokenlength = length(tokens[i])
+
                     if tokenlength == 4
                         # -0300
                         res["tzoffset"] = parse(Int, tokens[i][1:2])*3600+parse(Int, tokens[i][2:end])*60
