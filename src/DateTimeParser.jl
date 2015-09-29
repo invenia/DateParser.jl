@@ -246,7 +246,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
 
             # Check weekday
             if haskey(weekday, lowercase(token))
-                res["weekday"] = weekday[token]
+                res["weekday"] = weekday[lowercase(token)]
                 i+=1
 
             # Check month name
@@ -283,7 +283,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
 
             # Check am/pm
             elseif haskey(ampm, lowercase(tokens[i]))
-                value = ampm[tokens[i]]
+                value = ampm[lowercase(tokens[i])]
                 if value == 2 && res["hour"] < 12
                     res["hour"] += 12
                 elseif value == 1 && res["hour"] == 12
