@@ -47,7 +47,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
         "sunday" => 7, "sun" => 7,
     )
 
-    jump = (" ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st", "nd", "rd", "th",)
+    jump = (" ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st", "nd", "rd", "th", "the")
     pertain = ("of",)
     utczone = ("z",)
 
