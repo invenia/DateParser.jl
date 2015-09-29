@@ -227,12 +227,12 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                         i+=1
                     end
                 end
-            elseif haskey(ampm, lowercase(tokens[i+1]))
-                # 12 am
-                res["hour"] = round(Int, parse(Float64, tokens[i]))
-                if res["hour"] < 12 && ampm[lowercase(tokens[i+1])] == 2
+            elseif i <= len && haskey(ampm, lowercase(tokens[i]))
+                # 12am
+                res["hour"] = round(Int, parse(Float64, token))
+                if res["hour"] < 12 && ampm[lowercase(tokens[i])] == 2
                     res["hour"] += 12
-                elseif res["hour"] == 12 && ampm[lowercase(tokens[i+1])] == 1
+                elseif res["hour"] == 12 && ampm[lowercase(tokens[i])] == 1
                     res["hour"] = 0
                 end
                 i += 1
