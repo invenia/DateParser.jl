@@ -47,7 +47,10 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
         "sunday" => 7, "sun" => 7,
     )
 
-    jump = (" ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st", "nd", "rd", "th", "the")
+    jump = (
+        " ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st",
+        "nd", "rd", "th", "the",
+    )
     pertain = ("of",)
     utczone = ("z",)
 
@@ -211,7 +214,8 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                         i+=1
                     end
                 end
-            elseif i > len || lowercase(tokens[i]) in jump || haskey(monthtovalue, lowercase(tokens[i]))
+            elseif i > len || lowercase(tokens[i]) in jump
+                    || haskey(monthtovalue, lowercase(tokens[i]))
                 if i+1 <= len && haskey(ampm, lowercase(tokens[i+1]))
                     # 12 am
                     res["hour"] = round(Int, parse(Float64, token))
@@ -268,7 +272,8 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                             push!(ymd, round(Int, parse(Float64, tokens[i])))
                             i += 1
                         end
-                    elseif (i+3 <= len && tokens[i] == tokens[i+2] == " " && tokens[i+1] in pertain)
+                    elseif (i+3 <= len && tokens[i] == tokens[i+2] == " " &&
+                            tokens[i+1] in pertain)
                         # Jan of 01
                         # In this case, 01 is clearly year
                         try
