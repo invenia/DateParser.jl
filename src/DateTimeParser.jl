@@ -83,9 +83,9 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 if tokenlength == 4
                     res["minute"] = parse(Int, token[3:4])
                 end
-            elseif tokenlength == 6 || (tokenlength > 6 && search(token, ".") == 7)
+            elseif tokenlength == 6 || (tokenlength > 6 && search(token, '.') == 7)
                 # YYMMDD or HHMMSS[.ss]
-                if length(ymd) == 0 && search(token, ".") == 0
+                if length(ymd) == 0 && !contains(token, ".")
                     push!(ymd, convertyear(parse(Int, token[1:2])))
                     push!(ymd, parse(Int, token[3:4]))
                     push!(ymd, parse(Int, token[5:end]))
