@@ -326,7 +326,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
 
                     if tokenlength == 4
                         # -0300
-                        res["tzoffset"] = parse(Int, tokens[i][1:2])*3600+parse(Int, tokens[i][2:end])*60
+                        res["tzoffset"] = parse(Int, tokens[i][1:2])*3600+parse(Int, tokens[i][3:end])*60
                     elseif i+1 <= len && tokens[i+1] == ":"
                         # -03:00
                         res["tzoffset"] = parse(Int, tokens[i])*3600+parse(Int, tokens[i+2])*60
