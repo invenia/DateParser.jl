@@ -52,7 +52,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
         "nd", "rd", "th", "the",
     )
     pertain = ("of",)
-    utczone = ("z",)
+    utczone = ("utc", "gmt", "z",)
 
     monthtovalue = Dict()
     for key in keys(Dates.MONTHTOVALUE["english"])
