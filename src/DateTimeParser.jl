@@ -107,8 +107,8 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 push!(ymd, parse(Int, token[1:4]))
                 push!(ymd, parse(Int, token[5:6]))
                 push!(ymd, parse(Int, token[7:8]))
-                res["hour"] = parse(Int, token[1:2])
-                res["minute"] = parse(Int, token[3:4])
+                res["hour"] = parse(Int, token[9:10])
+                res["minute"] = parse(Int, token[11:12])
                 if tokenlength == 14
                     res["second"] = parse(Int, token[13:14])
                 end
