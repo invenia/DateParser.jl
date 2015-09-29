@@ -214,8 +214,8 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                         i+=1
                     end
                 end
-            elseif i > len || lowercase(tokens[i]) in jump
-                    || haskey(monthtovalue, lowercase(tokens[i]))
+            elseif i > len || lowercase(tokens[i]) in jump ||
+                    haskey(monthtovalue, lowercase(tokens[i]))
                 if i+1 <= len && haskey(ampm, lowercase(tokens[i+1]))
                     # 12 am
                     res["hour"] = round(Int, parse(Float64, token))
@@ -299,7 +299,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
             # Check for a timezone name
             elseif haskey(res, "hour") && length(tokens[i]) <= 5 &&
                     !haskey(res, "tzname") && !haskey(res, "tzoffset") &&
-                    ismatch(r"^[A-Z]*$", tokens[i])
+                    ismatch(r"^\w*$", tokens[i]) && !(lowercase(tokens[i]) in jump)
                 res["tzname"] = tokens[i]
                 i += 1
 
