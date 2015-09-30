@@ -82,11 +82,12 @@ timezone_infos = Dict{String, TimeZone}("TEST" => FixedTimeZone("TEST", 3600))
 @test parsedate("1999 2:30 TEST", timezone_infos=timezone_infos, default=default).timezone == timezone_infos["TEST"]
 @test parsedate("1999 2:30 WET", default=default).timezone.name == :WET
 @test parsedate("1999 2:30 Z", default=default).timezone == TimeZone("UTC")
-@test_throws ErrorException parsedate("1999 2:30 FAIL")
-@test parsedate("1999 2:30 +01:00").timezone.name == :local
-@test parsedate("1999 2:30 +01:00").timezone.offset.utc == Dates.Second(3600)
-@test parsedate("1999 2:30 TEST -01:00").timezone.name == :TEST
-@test parsedate("1999 2:30 TEST -01:00").timezone.offset.utc == Dates.Second(-3600)
+@test_throws ErrorException parsedate("1999 2:30 FAIL", default=default)
+@test parsedate("1999 2:30 +01:00", default=default).timezone.name == :local
+@test parsedate("1999 2:30 +01:00", default=default).timezone.offset.utc == Dates.Second(3600)
+@test parsedate("1999 2:30 TEST -01:00", default=default).timezone.name == :TEST
+@test parsedate("1999 2:30 TEST -01:00", default=default).timezone.offset.utc == Dates.Second(-3600)
+@test parsedate("1999 2:30 America/Winnipeg", default=default).timezone.name == symbol("America/Winnipeg")
 
 
 # Examples I found in Python's dateutil's pointers links

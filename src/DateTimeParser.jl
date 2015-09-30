@@ -297,10 +297,14 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 i += 1
 
             # Check for a timezone name
-            elseif haskey(res, "hour") && length(tokens[i]) <= 5 &&
-                    !haskey(res, "tzname") && !haskey(res, "tzoffset") &&
+            elseif haskey(res, "hour") && !haskey(res, "tzname") &&
+                    !haskey(res, "tzoffset") &&
                     ismatch(r"^\w*$", tokens[i]) && !(lowercase(tokens[i]) in jump)
                 res["tzname"] = tokens[i]
+                while i+2 <= len && tokens[i+1] == "/"
+                    res["tzname"] = string(res["tzname"], "/", tokens[i+2])
+                    i+=2
+                end
                 i += 1
 
                 # Check for something like GMT+3, or BRST+3. Notice
