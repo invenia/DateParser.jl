@@ -15,11 +15,11 @@ export parsedate
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
 function parsedate(datetimestring::String, fuzzy::Bool=false;
-                        default::ZonedDateTime=ZonedDateTime(DateTime(today()),localzone()),
-                        timezone_infos::Dict{String, TimeZone} = Dict{String, TimeZone}(), # Specify what a timezone is
-                        dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
-                        yearfirst::Bool=false # MM-DD-YY vs YY-MM-DD
-                    )
+    default::ZonedDateTime=ZonedDateTime(DateTime(today()),localzone()),
+    timezone_infos::Dict{String, TimeZone} = Dict{String, TimeZone}(), # Specify what a timezone is
+    dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
+    yearfirst::Bool=false # MM-DD-YY vs YY-MM-DD
+)
     datetimestring = strip(datetimestring)
 
     if isempty(datetimestring)
@@ -78,7 +78,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
         # Check if it's a number
         if !isnull(tryparse(Float64, tokens[i]))
             # Token is a number
-            i+=1
+            i += 1
             if length(ymd) == 3 && tokenlength in (2,4) &&
                 (i>=len || (tokens[i] != ":" && !haskey(hms, lowercase(tokens[i]))))
                 # 19990101T23[59]
@@ -98,7 +98,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                     res["minute"] = parse(Int, token[3:4])
                     temp = parse(Float64, token[5:end])
                     res["second"] = floor(Int, temp)
-                    res["millisecond"] = round(Int, temp%1*1000)
+                    res["millisecond"] = round(Int, (temp % 1) * 1000)
                 end
             elseif tokenlength == 8
                 # YYYYMMDD
@@ -126,26 +126,26 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                     if idx == 1
                         temp = parse(Float64, token)
                         res["hour"] = floor(Int, temp)
-                        temp = temp%1
+                        temp = temp % 1
                         if temp != 0
-                            res["minute"] = round(Int, 60*temp)
+                            res["minute"] = round(Int, 60 * temp)
                         end
                     elseif idx == 2
                         temp = parse(Float64, token)
                         res["minute"] = floor(Int, temp)
-                        temp = temp%1
+                        temp = temp % 1
                         if temp != 0
-                            res["second"] = round(Int, 60*temp)
+                            res["second"] = round(Int, 60 * temp)
                         end
                     elseif idx == 3
                         temp = parse(Float64, token)
                         res["second"] = floor(Int, temp)
-                        temp = temp%1
+                        temp = temp % 1
                         if temp != 0
-                            res["millisecond"] = round(Int, 1000*temp)
+                            res["millisecond"] = round(Int, 1000 * temp)
                         end
                     end
-                    i+=1
+                    i += 1
                     if i > len || idx >= 3
                         break
                     end
@@ -168,15 +168,15 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 i += 1
                 value = parse(Float64, tokens[i])
                 res["minute"] = floor(Int, value)
-                if value%1 != 0
-                    res["second"] = round(Int, 60*(value%1))
+                if value % 1 != 0
+                    res["second"] = round(Int, 60 * (value % 1))
                 end
-                i+=1
+                i += 1
                 if i < len && tokens[i] == ":"
                     temp = parse(Float64, tokens[i+1])
                     res["second"] = floor(Int, temp)
                     res["millisecond"] = round(Int, temp%1*1000)
-                    i+=2
+                    i += 2
                 end
             elseif i <= len && tokens[i] in ("-","/",".")
                 sep = tokens[i]
@@ -191,13 +191,13 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                     else
                         temp = parse(Float64, tokens[i])
                         push!(ymd, floor(Int, temp))
-                        if temp%1 != 0
+                        if temp % 1 != 0
                             if length(tokens[i]) <= 4
                                 # DD.YY
-                                push!(ymd, round(Int, temp%1 * 100))
+                                push!(ymd, round(Int, (temp % 1) * 100))
                             else
                                 # DD.YYYY
-                                push!(ymd, round(Int, temp%1 * 10000))
+                                push!(ymd, round(Int, (temp % 1) * 10000))
                             end
                         end
                     end
@@ -211,7 +211,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                         else
                             push!(ymd, round(Int, parse(Float64, tokens[i])))
                         end
-                        i+=1
+                        i += 1
                     end
                 end
             elseif i > len || lowercase(tokens[i]) in jump ||
@@ -228,7 +228,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 else
                     push!(ymd, round(Int, parse(Float64, token)))
                     if i > len || !haskey(monthtovalue, lowercase(tokens[i]))
-                        i+=1
+                        i += 1
                     end
                 end
             elseif i <= len && haskey(ampm, lowercase(tokens[i]))
@@ -247,16 +247,13 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
             end
         else
             # Token is not a number
-
-            # Check weekday
             if haskey(weekday, lowercase(token))
+                # Weekday
                 res["weekday"] = weekday[lowercase(token)]
-                i+=1
-
-            # Check month name
+                i += 1
             elseif haskey(monthtovalue, lowercase(token))
+                # Month name
                 push!(ymd, round(Int, monthtovalue[lowercase(token)]))
-
                 mstridx = length(ymd)
                 i += 1
                 if i <= len
@@ -285,9 +282,8 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                         i += 4
                     end
                 end
-
-            # Check am/pm
             elseif haskey(ampm, lowercase(tokens[i]))
+                # am/pm
                 value = ampm[lowercase(tokens[i])]
                 if value == 2 && res["hour"] < 12
                     res["hour"] += 12
@@ -295,18 +291,16 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                     res["hour"] = 0
                 end
                 i += 1
-
-            # Check for a timezone name
             elseif haskey(res, "hour") && !haskey(res, "tzname") &&
                     !haskey(res, "tzoffset") &&
                     ismatch(r"^\w*$", tokens[i]) && !(lowercase(tokens[i]) in jump)
+                # Timezone name
                 res["tzname"] = tokens[i]
                 while i+2 <= len && tokens[i+1] == "/"
                     res["tzname"] = string(res["tzname"], "/", tokens[i+2])
-                    i+=2
+                    i += 2
                 end
                 i += 1
-
                 # Check for something like GMT+3, or BRST+3. Notice
                 # that it doesn't mean "I am 3 hours after GMT", but
                 # "my time +3 is GMT". If found, we reverse the
@@ -320,14 +314,12 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                         delete!(res, "tzname")
                     end
                 end
-
-            # Check for a numbered timzone
             elseif haskey(res, "hour") && tokens[i] in ("+", "-")
+                # Numbered timzone
                 signal = tokens[i] == "+" ? 1 : -1
                 try
                     i += 1
                     tokenlength = length(tokens[i])
-
                     if tokenlength == 4
                         # -0300
                         res["tzoffset"] = parse(Int, tokens[i][1:2])*3600+parse(Int, tokens[i][3:end])*60
@@ -353,11 +345,10 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                     res["tzname"] = tokens[i+2]
                     i += 4
                 end
-            # Check jumps
             elseif !(lowercase(tokens[i]) in jump) && !fuzzy
                 error("Failed to parse date")
             else
-                i+=1
+                i += 1
             end
         end
     end
@@ -419,7 +410,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 res["year"], res["day"], res["month"] = ymd
             end
         else
-            if ymd[1] > 31 || (yearfirst && ymd[2] <= 12 && ymd[3] <=31)
+            if ymd[1] > 31 || (yearfirst && ymd[2] <= 12 && ymd[3] <= 31)
                 # 99-01-01
                 res["year"], res["month"], res["day"] = ymd
             elseif ymd[1] > 12 || (dayfirst && ymd[2] <= 12)
@@ -434,13 +425,13 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
 
     # Fill in default values if none exits
     if !haskey(res, "year") && !haskey(res, "month") && !haskey(res, "day")
-        if !haskey(res, "month")
-            res["month"] = month(default)
-        end
-        if !haskey(res, "day")
-            res["day"] = day(default)
-        end
+        res["year"], res["month"], res["day"] = Dates.yearmonthday(default)
     else
+        if haskey(res, "year")
+            res["year"] = convertyear(res["year"])
+        else
+            res["year"] = year(default)
+        end
         if !haskey(res, "month")
             res["month"] = 1
         end
@@ -448,24 +439,11 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
             res["day"] = 1
         end
     end
-    if haskey(res, "year")
-        res["year"] = convertyear(res["year"])
-    else
-        res["year"] = year(default)
-    end
     if !haskey(res, "hour") && !haskey(res, "minute") && !haskey(res, "second") && !haskey(res, "millisecond")
-        if !haskey(res, "hour")
-            res["hour"] = hour(default)
-        end
-        if !haskey(res, "minute")
-            res["minute"] = minute(default)
-        end
-        if !haskey(res, "second")
-            res["second"] = second(default)
-        end
-        if !haskey(res, "millisecond")
-            res["millisecond"] = millisecond(default)
-        end
+        res["hour"] = hour(default)
+        res["minute"] = minute(default)
+        res["second"] = second(default)
+        res["millisecond"] = millisecond(default)
     else
         if !haskey(res, "hour")
             res["hour"] = 0
