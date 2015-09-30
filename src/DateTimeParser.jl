@@ -380,19 +380,17 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
     elseif len_ymd == 2
         # Two members with numbers
         if ymd[1] > 31
-            if ymd[1] > 31
-                # 99-01
-                res["year"], res["month"] = ymd
-            elseif ymd[2] > 31
-                # 01-99
-                res["month"], res["year"] = ymd
-            elseif dayfirst && ymd[2] <= 12
-                # 13-01
-                res["day"], res["year"] = ymd
-            else
-                # 01-13
-                res["month"], res["day"] = ymd
-            end
+            # 99-01
+            res["year"], res["month"] = ymd
+        elseif ymd[2] > 31
+            # 01-99
+            res["month"], res["year"] = ymd
+        elseif dayfirst && ymd[2] <= 12
+            # 13-01
+            res["day"], res["year"] = ymd
+        else
+            # 01-13
+            res["month"], res["day"] = ymd
         end
     elseif len_ymd == 3
         # Three members
