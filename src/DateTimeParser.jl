@@ -477,16 +477,6 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
         end
     end
     # determine timezone
-    if haskey(res, "tzname")
-        if haskey(timezone_infos, res["tzname"])
-            res["timezone"] = timezone_infos[res["tzname"]]
-        elseif haskey(res, "tzoffset")
-            res["timezone"] = FixedTimeZone(res["tzname"],res["tzoffset"])
-        end
-    else
-
-    end
-
     if !haskey(res, "tzname") && !haskey(res, "tzoffset")
         res["timezone"] = default.timezone
     elseif !haskey(res, "tzoffset")
