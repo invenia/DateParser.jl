@@ -387,7 +387,7 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
             res["month"], res["year"] = ymd
         elseif dayfirst && ymd[2] <= 12
             # 13-01
-            res["day"], res["year"] = ymd
+            res["day"], res["month"] = ymd
         else
             # 01-13
             res["month"], res["day"] = ymd
