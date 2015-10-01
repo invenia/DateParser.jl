@@ -18,7 +18,8 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     default::ZonedDateTime=ZonedDateTime(DateTime(today()),localzone()),
     timezone_infos::Dict{AbstractString, TimeZone} = Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
-    yearfirst::Bool=false # MM-DD-YY vs YY-MM-DD
+    yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
+    language::AbstractString="english", # Language in Dates.VALUETOMONTH and VALUETODAYOFWEEK
 )
     datetimestring = strip(datetimestring)
 
@@ -37,29 +38,28 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
         "pm" => 2, "p" => 2,
     )
 
-    weekday = Dict{AbstractString, Int}(
-        "monday" => 1, "mon" => 1,
-        "tuesday" => 2, "tue" => 2,
-        "wednesday" => 3, "wed" => 3,
-        "thursday" => 4, "thu" => 4,
-        "friday" => 5, "fir" => 5,
-        "saterday" => 6, "sat" => 6,
-        "sunday" => 7, "sun" => 7,
-    )
-
     jump = (
         " ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st",
         "nd", "rd", "th", "the",
     )
+
     pertain = ("of",)
     utczone = ("utc", "gmt", "z",)
 
-    monthtovalue = Dict()
-    for key in keys(Dates.MONTHTOVALUE["english"])
-        monthtovalue[key] = Dates.MONTHTOVALUE["english"][key]
+    weekday = Dict{AbstractString, Int}()
+    for key in keys(Dates.VALUETODAYOFWEEK[language])
+        weekday[lowercase(Dates.VALUETODAYOFWEEK[language][key])] = key
     end
-    for key in keys(Dates.MONTHTOVALUEABBR["english"])
-        monthtovalue[key] = Dates.MONTHTOVALUEABBR["english"][key]
+    for key in keys(Dates.VALUETODAYOFWEEKABBR[language])
+        weekday[lowercase(Dates.VALUETODAYOFWEEKABBR[language][key])] = key
+    end
+
+    monthtovalue = Dict{AbstractString, Int}()
+    for key in keys(Dates.VALUETOMONTH[language])
+        monthtovalue[lowercase(Dates.VALUETOMONTH[language][key])] = key
+    end
+    for key in keys(Dates.VALUETOMONTHABBR[language])
+        monthtovalue[lowercase(Dates.VALUETOMONTHABBR[language][key])] = key
     end
 
     res = Dict()
