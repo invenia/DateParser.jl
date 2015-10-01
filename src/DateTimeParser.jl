@@ -338,13 +338,12 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
                 end
                 i += 1
                 res["tzoffset"] *= signal
+            elseif i+2 <= len && tokens[i] == "(" &&
+                    tokens[i+2] == ")" && ismatch(r"^\w*$", tokens[i+1])
                 # Look for a timezone name between parenthesis
-                if i+3 <= len && lowercase(tokens[i]) in jump && tokens[i+1] == "(" &&
-                        tokens[i+3] == ")" && ismatch(r"^\w*$", tokens[i+2])
-                    # -0300 (BRST)
-                    res["tzname"] = tokens[i+2]
-                    i += 4
-                end
+                # -0300 (BRST)
+                res["tzname"] = tokens[i+1]
+                i += 3
             elseif !(lowercase(tokens[i]) in jump) && !fuzzy
                 error("Failed to parse date")
             else
