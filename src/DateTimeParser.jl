@@ -14,9 +14,9 @@ export parsedate
 # http://new-pds-rings-2.seti.org/tools/time_formats.html
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
-function parsedate(datetimestring::String, fuzzy::Bool=false;
+function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     default::ZonedDateTime=ZonedDateTime(DateTime(today()),localzone()),
-    timezone_infos::Dict{String, TimeZone} = Dict{String, TimeZone}(), # Specify what a timezone is
+    timezone_infos::Dict{AbstractString, TimeZone} = Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false # MM-DD-YY vs YY-MM-DD
 )
@@ -26,18 +26,18 @@ function parsedate(datetimestring::String, fuzzy::Bool=false;
         return default
     end
 
-    hms = Dict{String, Int}(
+    hms = Dict{AbstractString, Int}(
         "h" => 1, "hour" => 1, "hours" => 1,
         "m" => 2, "minute" => 2, "minutes" => 2,
         "s" => 3, "second" => 3, "seconds" => 3,
     )
 
-    ampm = Dict{String, Int}(
+    ampm = Dict{AbstractString, Int}(
         "am" => 1, "a" => 1,
         "pm" => 2, "p" => 2,
     )
 
-    weekday = Dict{String, Int}(
+    weekday = Dict{AbstractString, Int}(
         "monday" => 1, "mon" => 1,
         "tuesday" => 2, "tue" => 2,
         "wednesday" => 3, "wed" => 3,
@@ -491,7 +491,7 @@ function convertyear(year::Int)
     end
 end
 
-function _parsedatetokens(input::String)
+function _parsedatetokens(input::AbstractString)
     tokens = []
     regex = r"^(?P<token>(\d+\.\d+(?=[^\.\d]|$))|(\d+)|(((?=[^\d])\w)+))(?P<extra>.*)$"
     input = strip(input)

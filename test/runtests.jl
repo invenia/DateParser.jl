@@ -78,7 +78,7 @@ default = ZonedDateTime(DateTime(1976, 7, 4), timezone)
 @test DateTime(parsedate("13s", default=default)) == DateTime(1976, 7, 4, 0, 0, 13, 0)
 @test DateTime(parsedate("0.5s", default=default)) == DateTime(1976, 7, 4, 0, 0, 0, 500)
 @test parsedate("1999", default=default).timezone == default.timezone
-timezone_infos = Dict{String, TimeZone}("TEST" => FixedTimeZone("TEST", 3600))
+timezone_infos = Dict{AbstractString, TimeZone}("TEST" => FixedTimeZone("TEST", 3600))
 @test parsedate("1999 2:30 TEST", timezone_infos=timezone_infos, default=default).timezone == timezone_infos["TEST"]
 @test parsedate("1999 2:30 WET", default=default).timezone.name == :WET
 @test parsedate("1999 2:30 Z", default=default).timezone == TimeZone("UTC")
