@@ -2,7 +2,7 @@ module DateTimeParser
 
 using Base.Dates
 using TimeZones
-import Base.Dates: MONTHTOVALUE, MONTHTOVALUEABBR
+import Base.Dates: VALUETODAYOFWEEK, VALUETODAYOFWEEKABBR, VALUETOMONTH, VALUETOMONTHABBR
 export parsedate
 
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
@@ -44,19 +44,19 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     end
 
     weekday = Dict{AbstractString, Int}()
-    for key in keys(Dates.VALUETODAYOFWEEK[language])
-        weekday[lowercase(Dates.VALUETODAYOFWEEK[language][key])] = key
+    for key in keys(VALUETODAYOFWEEK[language])
+        weekday[lowercase(VALUETODAYOFWEEK[language][key])] = key
     end
-    for key in keys(Dates.VALUETODAYOFWEEKABBR[language])
-        weekday[lowercase(Dates.VALUETODAYOFWEEKABBR[language][key])] = key
+    for key in keys(VALUETODAYOFWEEKABBR[language])
+        weekday[lowercase(VALUETODAYOFWEEKABBR[language][key])] = key
     end
 
     monthtovalue = Dict{AbstractString, Int}()
-    for key in keys(Dates.VALUETOMONTH[language])
-        monthtovalue[lowercase(Dates.VALUETOMONTH[language][key])] = key
+    for key in keys(VALUETOMONTH[language])
+        monthtovalue[lowercase(VALUETOMONTH[language][key])] = key
     end
-    for key in keys(Dates.VALUETOMONTHABBR[language])
-        monthtovalue[lowercase(Dates.VALUETOMONTHABBR[language][key])] = key
+    for key in keys(VALUETOMONTHABBR[language])
+        monthtovalue[lowercase(VALUETOMONTHABBR[language][key])] = key
     end
 
     res = Dict()
