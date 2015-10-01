@@ -14,6 +14,22 @@ export parsedate
 # http://new-pds-rings-2.seti.org/tools/time_formats.html
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
+const HMS = Dict{AbstractString, Int}(
+    "h" => 1, "hour" => 1, "hours" => 1,
+    "m" => 2, "minute" => 2, "minutes" => 2,
+    "s" => 3, "second" => 3, "seconds" => 3,
+)
+const AMPM = Dict{AbstractString, Int}(
+    "am" => 1, "a" => 1,
+    "pm" => 2, "p" => 2,
+)
+const JUMP = (
+    " ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st",
+    "nd", "rd", "th", "the",
+)
+const PERTAIN = ("of",)
+const UTCZONE = ("utc", "gmt", "z",)
+
 function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     default::ZonedDateTime=ZonedDateTime(DateTime(today()),localzone()),
     timezone_infos::Dict{AbstractString, TimeZone} = Dict{AbstractString, TimeZone}(), # Specify what a timezone is
@@ -26,25 +42,6 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     if isempty(datetimestring)
         return default
     end
-
-    hms = Dict{AbstractString, Int}(
-        "h" => 1, "hour" => 1, "hours" => 1,
-        "m" => 2, "minute" => 2, "minutes" => 2,
-        "s" => 3, "second" => 3, "seconds" => 3,
-    )
-
-    ampm = Dict{AbstractString, Int}(
-        "am" => 1, "a" => 1,
-        "pm" => 2, "p" => 2,
-    )
-
-    jump = (
-        " ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st",
-        "nd", "rd", "th", "the",
-    )
-
-    pertain = ("of",)
-    utczone = ("utc", "gmt", "z",)
 
     weekday = Dict{AbstractString, Int}()
     for key in keys(Dates.VALUETODAYOFWEEK[language])
@@ -80,7 +77,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
             # Token is a number
             i += 1
             if length(ymd) == 3 && tokenlength in (2,4) &&
-                (i>=len || (tokens[i] != ":" && !haskey(hms, lowercase(tokens[i]))))
+                (i>=len || (tokens[i] != ":" && !haskey(HMS, lowercase(tokens[i]))))
                 # 19990101T23[59]
                 res["hour"] = parse(Int, token[1:2])
                 if tokenlength == 4
@@ -115,13 +112,13 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 if tokenlength == 14
                     res["second"] = parse(Int, token[13:14])
                 end
-            elseif (i <= len && haskey(hms, lowercase(tokens[i]))) ||
-                    (i+1 <= len && tokens[i] == " " && haskey(hms, lowercase(tokens[i+1])))
+            elseif (i <= len && haskey(HMS, lowercase(tokens[i]))) ||
+                    (i+1 <= len && tokens[i] == " " && haskey(HMS, lowercase(tokens[i+1])))
                 # HH[ ]h or MM[ ]m or SS[.ss][ ]s
                 if tokens[i] == " "
                     i += 1
                 end
-                idx = hms[lowercase(tokens[i])]
+                idx = HMS[lowercase(tokens[i])]
                 while true
                     if idx == 1
                         temp = parse(Float64, token)
@@ -155,8 +152,8 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                         break
                     else
                         i += 1
-                        if i <= len && haskey(hms, lowercase(tokens[i]))
-                            idx = hms[lowercase(tokens[i])]
+                        if i <= len && haskey(HMS, lowercase(tokens[i]))
+                            idx = HMS[lowercase(tokens[i])]
                         else
                             idx += 1
                         end
@@ -182,7 +179,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 sep = tokens[i]
                 push!(ymd, round(Int, parse(Float64, token)))
                 i += 1
-                if i <= len && !(lowercase(tokens[i]) in jump)
+                if i <= len && !(lowercase(tokens[i]) in JUMP)
                     if isnull(tryparse(Float64, tokens[i]))
                         if haskey(monthtovalue, lowercase(tokens[i]))
                             push!(ymd, monthtovalue[lowercase(tokens[i])])
@@ -214,14 +211,14 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                         i += 1
                     end
                 end
-            elseif i > len || lowercase(tokens[i]) in jump ||
+            elseif i > len || lowercase(tokens[i]) in JUMP ||
                     haskey(monthtovalue, lowercase(tokens[i]))
-                if i+1 <= len && haskey(ampm, lowercase(tokens[i+1]))
+                if i+1 <= len && haskey(AMPM, lowercase(tokens[i+1]))
                     # 12 am
                     res["hour"] = round(Int, parse(Float64, token))
-                    if res["hour"] < 12 && ampm[lowercase(tokens[i+1])] == 2
+                    if res["hour"] < 12 && AMPM[lowercase(tokens[i+1])] == 2
                         res["hour"] += 12
-                    elseif res["hour"] == 12 && ampm[lowercase(tokens[i+1])] == 1
+                    elseif res["hour"] == 12 && AMPM[lowercase(tokens[i+1])] == 1
                         res["hour"] = 0
                     end
                     i += 2
@@ -231,12 +228,12 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                         i += 1
                     end
                 end
-            elseif i <= len && haskey(ampm, lowercase(tokens[i]))
+            elseif i <= len && haskey(AMPM, lowercase(tokens[i]))
                 # 12am
                 res["hour"] = round(Int, parse(Float64, token))
-                if res["hour"] < 12 && ampm[lowercase(tokens[i])] == 2
+                if res["hour"] < 12 && AMPM[lowercase(tokens[i])] == 2
                     res["hour"] += 12
-                elseif res["hour"] == 12 && ampm[lowercase(tokens[i])] == 1
+                elseif res["hour"] == 12 && AMPM[lowercase(tokens[i])] == 1
                     res["hour"] = 0
                 end
                 i += 1
@@ -270,7 +267,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                             i += 1
                         end
                     elseif (i+3 <= len && tokens[i] == tokens[i+2] == " " &&
-                            tokens[i+1] in pertain)
+                            tokens[i+1] in PERTAIN)
                         # Jan of 01
                         # In this case, 01 is clearly year
                         try
@@ -282,9 +279,9 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                         i += 4
                     end
                 end
-            elseif haskey(ampm, lowercase(tokens[i]))
+            elseif haskey(AMPM, lowercase(tokens[i]))
                 # am/pm
-                value = ampm[lowercase(tokens[i])]
+                value = AMPM[lowercase(tokens[i])]
                 if value == 2 && res["hour"] < 12
                     res["hour"] += 12
                 elseif value == 1 && res["hour"] == 12
@@ -293,7 +290,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 i += 1
             elseif haskey(res, "hour") && !haskey(res, "tzname") &&
                     !haskey(res, "tzoffset") &&
-                    ismatch(r"^\w*$", tokens[i]) && !(lowercase(tokens[i]) in jump)
+                    ismatch(r"^\w*$", tokens[i]) && !(lowercase(tokens[i]) in JUMP)
                 # Timezone name
                 res["tzname"] = tokens[i]
                 while i+2 <= len && tokens[i+1] == "/"
@@ -308,7 +305,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 # right.
                 if i <= len && tokens[i] in ("+", "-")
                     tokens[i] = tokens[i] == "+" ? "-" : "+"
-                    if lowercase(res["tzname"]) in utczone
+                    if lowercase(res["tzname"]) in UTCZONE
                         # With something like GMT+3, the timezone
                         # is *not* GMT.
                         delete!(res, "tzname")
@@ -344,7 +341,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 # -0300 (BRST)
                 res["tzname"] = tokens[i+1]
                 i += 3
-            elseif !(lowercase(tokens[i]) in jump) && !fuzzy
+            elseif !(lowercase(tokens[i]) in JUMP) && !fuzzy
                 error("Failed to parse date")
             else
                 i += 1
@@ -465,7 +462,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
             res["timezone"] = timezone_infos[res["tzname"]]
         elseif res["tzname"] in TimeZones.timezone_names()
             res["timezone"] = TimeZone(res["tzname"])
-        elseif lowercase(res["tzname"]) in utczone
+        elseif lowercase(res["tzname"]) in UTCZONE
             res["timezone"] = TimeZone("utc")
         else
             error("Failed to parse date")
