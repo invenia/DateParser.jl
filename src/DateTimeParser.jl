@@ -317,19 +317,21 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 try
                     i += 1
                     tokenlength = length(tokens[i])
+                    hour = minute = 0
                     if tokenlength == 4
                         # -0300
-                        res["tzoffset"] = parse(Int, tokens[i][1:2])*3600+parse(Int, tokens[i][3:end])*60
+                        hour, minute = parse(Int, tokens[i][1:2]), parse(Int, tokens[i][3:end])
                     elseif i+1 <= len && tokens[i+1] == ":"
                         # -03:00
-                        res["tzoffset"] = parse(Int, tokens[i])*3600+parse(Int, tokens[i+2])*60
+                        hour, minute = parse(Int, tokens[i]), parse(Int, tokens[i+2])
                         i += 2
                     elseif tokenlength <= 2
                         # -[0]3
-                        res["tzoffset"] = parse(Int, tokens[i])*3600
+                        hour = parse(Int, tokens[i])
                     else
                         error("Faild to read timezone offset after +/-")
                     end
+                    res["tzoffset"] = hour * 3600 + minute * 60
                 catch
                     error("Faild to read timezone offset after +/-")
                 end
