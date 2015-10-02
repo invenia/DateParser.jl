@@ -62,7 +62,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     res = Dict()
 
     # year/month/day list
-    ymd = []
+    ymd = sizehint!(Int[], 3)
     # Index of the month string in ymd
     mstridx = -1
 
@@ -491,7 +491,7 @@ function convertyear(year::Int)
 end
 
 function _parsedatetokens(input::AbstractString)
-    tokens = []
+    tokens = AbstractString[]
     regex = r"^(?P<token>(\d+\.\d+(?=[^\.\d]|$))|(\d+)|(((?=[^\d])\w)+))(?P<extra>.*)$"
     input = strip(input)
     while !isempty(input)
