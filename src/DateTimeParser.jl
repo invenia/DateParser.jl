@@ -477,7 +477,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
             res["minute"], res["second"], res["millisecond"]), res["timezone"])
 end
 
-# converts a 2 digit year to a 4 didgit one near year 2000 (e.g. 95 becomes 1995)
+"Converts a 2 digit year to a 4 digit one near year 2000 (e.g. 95 becomes 1995)"
 function convertyear(year::Int)
     if year > 99
         return year
