@@ -43,7 +43,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
         return default
     end
 
-    weekday = Dict{AbstractString, Int}()
+    weekday = Dict{UTF8String, Int}()
     for (value, name) in VALUETODAYOFWEEK[locale]
         weekday[lowercase(name)] = value
     end
@@ -51,7 +51,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
         weekday[lowercase(name)] = value
     end
 
-    monthtovalue = Dict{AbstractString, Int}()
+    monthtovalue = Dict{UTF8String, Int}()
     for (value, name) in VALUETOMONTH[locale]
         monthtovalue[lowercase(name)] = value
     end
