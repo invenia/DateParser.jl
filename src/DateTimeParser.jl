@@ -35,7 +35,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     timezone_infos::Dict{AbstractString, TimeZone} = Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
-    language::AbstractString="english", # Language in Dates.VALUETOMONTH and VALUETODAYOFWEEK
+    locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
 )
     datetimestring = strip(datetimestring)
 
@@ -44,19 +44,19 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     end
 
     weekday = Dict{AbstractString, Int}()
-    for key in keys(VALUETODAYOFWEEK[language])
-        weekday[lowercase(VALUETODAYOFWEEK[language][key])] = key
+    for key in keys(VALUETODAYOFWEEK[locale])
+        weekday[lowercase(VALUETODAYOFWEEK[locale][key])] = key
     end
-    for key in keys(VALUETODAYOFWEEKABBR[language])
-        weekday[lowercase(VALUETODAYOFWEEKABBR[language][key])] = key
+    for key in keys(VALUETODAYOFWEEKABBR[locale])
+        weekday[lowercase(VALUETODAYOFWEEKABBR[locale][key])] = key
     end
 
     monthtovalue = Dict{AbstractString, Int}()
-    for key in keys(VALUETOMONTH[language])
-        monthtovalue[lowercase(VALUETOMONTH[language][key])] = key
+    for key in keys(VALUETOMONTH[locale])
+        monthtovalue[lowercase(VALUETOMONTH[locale][key])] = key
     end
-    for key in keys(VALUETOMONTHABBR[language])
-        monthtovalue[lowercase(VALUETOMONTHABBR[language][key])] = key
+    for key in keys(VALUETOMONTHABBR[locale])
+        monthtovalue[lowercase(VALUETOMONTHABBR[locale][key])] = key
     end
 
     res = Dict()
