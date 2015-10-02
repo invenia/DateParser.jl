@@ -189,7 +189,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                         temp = parse(Float64, tokens[i])
                         push!(ymd, floor(Int, temp))
                         if temp % 1 != 0
-                            if length(tokens[i]) <= 4
+                            if length(tokens[i]) <= 5
                                 # DD.YY
                                 push!(ymd, round(Int, (temp % 1) * 100))
                             else
