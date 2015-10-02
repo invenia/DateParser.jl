@@ -44,19 +44,19 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     end
 
     weekday = Dict{AbstractString, Int}()
-    for key in keys(VALUETODAYOFWEEK[locale])
-        weekday[lowercase(VALUETODAYOFWEEK[locale][key])] = key
+    for (value, name) in VALUETODAYOFWEEK[locale]
+        weekday[lowercase(name)] = value
     end
-    for key in keys(VALUETODAYOFWEEKABBR[locale])
-        weekday[lowercase(VALUETODAYOFWEEKABBR[locale][key])] = key
+    for (value, name) in VALUETODAYOFWEEKABBR[locale]
+        weekday[lowercase(name)] = value
     end
 
     monthtovalue = Dict{AbstractString, Int}()
-    for key in keys(VALUETOMONTH[locale])
-        monthtovalue[lowercase(VALUETOMONTH[locale][key])] = key
+    for (value, name) in VALUETOMONTH[locale]
+        monthtovalue[lowercase(name)] = value
     end
-    for key in keys(VALUETOMONTHABBR[locale])
-        monthtovalue[lowercase(VALUETOMONTHABBR[locale][key])] = key
+    for (value, name) in VALUETOMONTHABBR[locale]
+        monthtovalue[lowercase(name)] = value
     end
 
     res = Dict()
