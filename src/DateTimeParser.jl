@@ -31,7 +31,7 @@ const PERTAIN = ("of",)
 const UTCZONE = ("utc", "gmt", "z",)
 
 function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
-    default::ZonedDateTime=ZonedDateTime(DateTime(today()),localzone()),
+    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), TimeZone("UTC")),
     timezone_infos::Dict{AbstractString, TimeZone} = Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
@@ -422,40 +422,14 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
     end
 
     # Fill in default values if none exits
-    if !haskey(res, "year") && !haskey(res, "month") && !haskey(res, "day")
-        res["year"], res["month"], res["day"] = Dates.yearmonthday(default)
-    else
-        if haskey(res, "year")
-            res["year"] = convertyear(res["year"])
-        else
-            res["year"] = year(default)
-        end
-        if !haskey(res, "month")
-            res["month"] = 1
-        end
-        if !haskey(res, "day")
-            res["day"] = 1
-        end
-    end
-    if !haskey(res, "hour") && !haskey(res, "minute") && !haskey(res, "second") && !haskey(res, "millisecond")
-        res["hour"] = hour(default)
-        res["minute"] = minute(default)
-        res["second"] = second(default)
-        res["millisecond"] = millisecond(default)
-    else
-        if !haskey(res, "hour")
-            res["hour"] = 0
-        end
-        if !haskey(res, "minute")
-            res["minute"] = 0
-        end
-        if !haskey(res, "second")
-            res["second"] = 0
-        end
-        if !haskey(res, "millisecond")
-            res["millisecond"] = 0
-        end
-    end
+    res["year"] = convertyear(get(res, "year", year(default)))
+    get!(res, "month", month(default))
+    get!(res, "day", day(default))
+    get!(res, "hour", hour(default))
+    get!(res, "minute", minute(default))
+    get!(res, "second", second(default))
+    get!(res, "millisecond", millisecond(default))
+
     # determine timezone
     if !haskey(res, "tzname") && !haskey(res, "tzoffset")
         res["timezone"] = default.timezone
