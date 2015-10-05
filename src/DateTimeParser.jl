@@ -217,13 +217,10 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                     haskey(monthtovalue, lowercase(tokens[i]))
                 if i+1 <= len && haskey(AMPM, lowercase(tokens[i+1]))
                     # 12 am
+                    i += 1
                     res["hour"] = round(Int, parse(Float64, token))
-                    if res["hour"] < 12 && AMPM[lowercase(tokens[i+1])] == :pm
-                        res["hour"] += 12
-                    elseif res["hour"] == 12 && AMPM[lowercase(tokens[i+1])] == :am
-                        res["hour"] = 0
-                    end
-                    i += 2
+                    res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
+                    i += 1
                 else
                     push!(ymd, round(Int, parse(Float64, token)))
                     if i > len || !haskey(monthtovalue, lowercase(tokens[i]))
@@ -233,11 +230,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
             elseif i <= len && haskey(AMPM, lowercase(tokens[i]))
                 # 12am
                 res["hour"] = round(Int, parse(Float64, token))
-                if res["hour"] < 12 && AMPM[lowercase(tokens[i])] == :pm
-                    res["hour"] += 12
-                elseif res["hour"] == 12 && AMPM[lowercase(tokens[i])] == :am
-                    res["hour"] = 0
-                end
+                res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
                 i += 1
             elseif !fuzzy
                 error("Failed to parse date")
@@ -283,12 +276,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 end
             elseif haskey(AMPM, lowercase(tokens[i]))
                 # am/pm
-                value = AMPM[lowercase(tokens[i])]
-                if value == :pm && res["hour"] < 12
-                    res["hour"] += 12
-                elseif value == :am && res["hour"] == 12
-                    res["hour"] = 0
-                end
+                res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
                 i += 1
             elseif haskey(res, "hour") && !haskey(res, "tzname") &&
                     !haskey(res, "tzoffset") &&
@@ -464,6 +452,15 @@ function convertyear(year::Int)
     else
         return year + 1900
     end
+end
+
+function converthour(hour::Int, ampm::Symbol)
+    if hour < 12 && ampm == :pm
+        hour += 12
+    elseif hour == 12 && ampm == :am
+        hour = 0
+    end
+    return hour
 end
 
 function _parsedatetokens(input::AbstractString)
