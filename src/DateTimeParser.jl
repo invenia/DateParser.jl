@@ -124,20 +124,17 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     res["second"] = floor(Int, temp)
                     res["millisecond"] = round(Int, (temp % 1) * 1000)
                 end
-            elseif tokenlength == 8
-                # YYYYMMDD
+            elseif tokenlength in (8, 12, 14)
+                # YYYYMMDD[hhmm[ss]]
                 push!(ymd, parse(Int, token[1:4]))
                 push!(ymd, parse(Int, token[5:6]))
                 push!(ymd, parse(Int, token[7:8]))
-            elseif tokenlength in (12,14)
-                # YYYYMMDDhhmm[ss]
-                push!(ymd, parse(Int, token[1:4]))
-                push!(ymd, parse(Int, token[5:6]))
-                push!(ymd, parse(Int, token[7:8]))
-                res["hour"] = parse(Int, token[9:10])
-                res["minute"] = parse(Int, token[11:12])
-                if tokenlength == 14
-                    res["second"] = parse(Int, token[13:14])
+                if tokenlength > 8
+                    res["hour"] = parse(Int, token[9:10])
+                    res["minute"] = parse(Int, token[11:12])
+                    if tokenlength > 12
+                        res["second"] = parse(Int, token[13:14])
+                    end
                 end
             elseif (i <= len && haskey(HMS, lowercase(tokens[i]))) ||
                     (i+1 <= len && tokens[i] == " " && haskey(HMS, lowercase(tokens[i+1])))
