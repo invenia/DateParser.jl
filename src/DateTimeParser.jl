@@ -3,7 +3,34 @@ module DateTimeParser
 using Base.Dates
 using TimeZones
 import Base.Dates: VALUETODAYOFWEEK, VALUETODAYOFWEEKABBR, VALUETOMONTH, VALUETOMONTHABBR
-export parsedate
+export parse, tryparse
+
+
+function Base.tryparse(::Type{ZonedDateTime}, str::AbstractString; args...)
+    try
+        return Nullable{ZonedDateTime}(parse(ZonedDateTime, str, args...))
+    catch
+        return Nullable{ZonedDateTime}()
+    end
+end
+function Base.tryparse(::Type{DateTime}, str::AbstractString; args...)
+    try
+        return Nullable{DateTime}(parse(DateTime, str, args...))
+    catch
+        return Nullable{DateTime}()
+    end
+end
+function Base.tryparse(::Type{Date}, str::AbstractString; args...)
+    try
+        return Nullable{Date}(parse(Date, str, args...))
+    catch
+        return Nullable{Date}()
+    end
+end
+
+Base.parse(::Type{ZonedDateTime}, str::AbstractString; args...) = parsedate(str; args...)
+Base.parse(::Type{DateTime}, str::AbstractString; args...) = DateTime(parsedate(str; args...))
+Base.parse(::Type{Date}, str::AbstractString; args...) = Date(DateTime(parsedate(str; args...)))
 
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
 # https://labix.org/python-dateutil#head-a23e8ae0a661d77b89dfb3476f85b26f0b30349c
@@ -30,7 +57,7 @@ const JUMP = (
 const PERTAIN = ("of",)
 const UTCZONE = ("utc", "gmt", "z",)
 
-function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
+function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), TimeZone("UTC")),
     timezone_infos::Dict{AbstractString, TimeZone} = Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
