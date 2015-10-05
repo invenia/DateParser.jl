@@ -465,7 +465,7 @@ end
 
 function _parsedatetokens(input::AbstractString)
     tokens = AbstractString[]
-    regex = r"^(?P<token>(\d+\.\d+(?=[^\.\d]|$))|(\d+)|(((?=[^\d])\w)+))(?P<extra>.*)$"
+    regex = r"^(?<token>(\d+\.\d+(?=[^\.\d]|$))|(\d+)|(((?=[^\d])\w)+))(?<extra>.*)$"
     input = strip(input)
     while !isempty(input)
         if ismatch(regex,input)
