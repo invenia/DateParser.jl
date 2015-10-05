@@ -93,6 +93,15 @@ timezone_infos = Dict{AbstractString, TimeZone}("TEST" => FixedTimeZone("TEST", 
 
 @test parse(DateTime, "2015.10.02 10:21:59.45", default=default) == DateTime(2015, 10, 2, 10, 21, 59, 450)
 
+# Test tryparse
+@test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), TimeZone("UTC"))
+@test isnull(tryparse(ZonedDateTime, "garbage"))
+@test get(tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default)) == DateTime(1994, 10, 13, 12, 10, 14)
+@test isnull(tryparse(DateTime, "garbage"))
+@test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default)) == Date(1994, 10, 13)
+@test isnull(tryparse(Date, "garbage"))
+
+
 # Examples I found in Python's dateutil's pointers links
 date = ZonedDateTime(DateTime(1995, 2, 4), timezone)
 @test parse(ZonedDateTime, "1995-02-04", default=default) == date

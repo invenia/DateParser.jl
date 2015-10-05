@@ -8,21 +8,21 @@ export parse, tryparse
 
 function Base.tryparse(::Type{ZonedDateTime}, str::AbstractString; args...)
     try
-        return Nullable{ZonedDateTime}(parse(ZonedDateTime, str, args...))
+        return Nullable{ZonedDateTime}(parse(ZonedDateTime, str; args...))
     catch
         return Nullable{ZonedDateTime}()
     end
 end
 function Base.tryparse(::Type{DateTime}, str::AbstractString; args...)
     try
-        return Nullable{DateTime}(parse(DateTime, str, args...))
+        return Nullable{DateTime}(parse(DateTime, str; args...))
     catch
         return Nullable{DateTime}()
     end
 end
 function Base.tryparse(::Type{Date}, str::AbstractString; args...)
     try
-        return Nullable{Date}(parse(Date, str, args...))
+        return Nullable{Date}(parse(Date, str; args...))
     catch
         return Nullable{Date}()
     end
