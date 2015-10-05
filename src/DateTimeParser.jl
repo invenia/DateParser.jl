@@ -14,14 +14,14 @@ export parsedate
 # http://new-pds-rings-2.seti.org/tools/time_formats.html
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
-const HMS = Dict{AbstractString, Int}(
-    "h" => 1, "hour" => 1, "hours" => 1,
-    "m" => 2, "minute" => 2, "minutes" => 2,
-    "s" => 3, "second" => 3, "seconds" => 3,
+const HMS = Dict{AbstractString, Symbol}(
+    "h" => :hour, "hour" => :hour, "hours" => :hour,
+    "m" => :minute, "minute" => :minute, "minutes" => :minute,
+    "s" => :second, "second" => :second, "seconds" => :second,
 )
-const AMPM = Dict{AbstractString, Int}(
-    "am" => 1, "a" => 1,
-    "pm" => 2, "p" => 2,
+const AMPM = Dict{AbstractString, Symbol}(
+    "am" => :am, "a" => :am,
+    "pm" => :pm, "p" => :pm,
 )
 const JUMP = (
     " ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st",
@@ -120,21 +120,21 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 end
                 idx = HMS[lowercase(tokens[i])]
                 while true
-                    if idx == 1
+                    if idx == :hour
                         temp = parse(Float64, token)
                         res["hour"] = floor(Int, temp)
                         temp = temp % 1
                         if temp != 0
                             res["minute"] = round(Int, 60 * temp)
                         end
-                    elseif idx == 2
+                    elseif idx == :minute
                         temp = parse(Float64, token)
                         res["minute"] = floor(Int, temp)
                         temp = temp % 1
                         if temp != 0
                             res["second"] = round(Int, 60 * temp)
                         end
-                    elseif idx == 3
+                    elseif idx == :second
                         temp = parse(Float64, token)
                         res["second"] = floor(Int, temp)
                         temp = temp % 1
@@ -143,7 +143,7 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                         end
                     end
                     i += 1
-                    if i > len || idx >= 3
+                    if i > len || idx == :second
                         break
                     end
                     # 12h00
@@ -154,8 +154,10 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                         i += 1
                         if i <= len && haskey(HMS, lowercase(tokens[i]))
                             idx = HMS[lowercase(tokens[i])]
+                        elseif idx == :hour
+                            idx = :minute
                         else
-                            idx += 1
+                            idx = :second
                         end
                     end
                 end
@@ -216,9 +218,9 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
                 if i+1 <= len && haskey(AMPM, lowercase(tokens[i+1]))
                     # 12 am
                     res["hour"] = round(Int, parse(Float64, token))
-                    if res["hour"] < 12 && AMPM[lowercase(tokens[i+1])] == 2
+                    if res["hour"] < 12 && AMPM[lowercase(tokens[i+1])] == :pm
                         res["hour"] += 12
-                    elseif res["hour"] == 12 && AMPM[lowercase(tokens[i+1])] == 1
+                    elseif res["hour"] == 12 && AMPM[lowercase(tokens[i+1])] == :am
                         res["hour"] = 0
                     end
                     i += 2
@@ -231,9 +233,9 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
             elseif i <= len && haskey(AMPM, lowercase(tokens[i]))
                 # 12am
                 res["hour"] = round(Int, parse(Float64, token))
-                if res["hour"] < 12 && AMPM[lowercase(tokens[i])] == 2
+                if res["hour"] < 12 && AMPM[lowercase(tokens[i])] == :pm
                     res["hour"] += 12
-                elseif res["hour"] == 12 && AMPM[lowercase(tokens[i])] == 1
+                elseif res["hour"] == 12 && AMPM[lowercase(tokens[i])] == :am
                     res["hour"] = 0
                 end
                 i += 1
@@ -282,9 +284,9 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
             elseif haskey(AMPM, lowercase(tokens[i]))
                 # am/pm
                 value = AMPM[lowercase(tokens[i])]
-                if value == 2 && res["hour"] < 12
+                if value == :pm && res["hour"] < 12
                     res["hour"] += 12
-                elseif value == 1 && res["hour"] == 12
+                elseif value == :am && res["hour"] == 12
                     res["hour"] = 0
                 end
                 i += 1
