@@ -99,8 +99,7 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     while i <= len
         token = tokens[i]
         tokenlength = length(token)
-        # Check if it's a number
-        if !isnull(tryparse(Float64, tokens[i]))
+        if isdigit(token)
             # Token is a number
             i += 1
             if length(ymd) == 3 && tokenlength in (2,4) &&
@@ -110,19 +109,21 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 if tokenlength == 4
                     res["minute"] = parse(Int, token[3:4])
                 end
-            elseif tokenlength == 6 || (tokenlength > 6 && search(token, '.') == 7)
+            elseif tokenlength == 6
                 # YYMMDD or HHMMSS[.ss]
-                if length(ymd) == 0 && !contains(token, ".")
-                    push!(ymd, convertyear(parse(Int, token[1:2])))
-                    push!(ymd, parse(Int, token[3:4]))
-                    push!(ymd, parse(Int, token[5:end]))
-                else
+                if length(ymd) != 0 || (i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1]))
                     # 19990101T235959[.59]
                     res["hour"] = parse(Int, token[1:2])
                     res["minute"] = parse(Int, token[3:4])
-                    temp = parse(Float64, token[5:end])
-                    res["second"] = floor(Int, temp)
-                    res["millisecond"] = round(Int, (temp % 1) * 1000)
+                    res["second"] = parse(Int, token[5:6])
+                    if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
+                        res["millisecond"] = round(Int, 1000 * parse(Float64, string(tokens[i], tokens[i+1])))
+                        i += 2
+                    end
+                else
+                    push!(ymd, convertyear(parse(Int, token[1:2])))
+                    push!(ymd, parse(Int, token[3:4]))
+                    push!(ymd, parse(Int, token[5:end]))
                 end
             elseif tokenlength in (8, 12, 14)
                 # YYYYMMDD[hhmm[ss]]
@@ -137,29 +138,35 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     end
                 end
             elseif (i <= len && haskey(HMS, lowercase(tokens[i]))) ||
-                    (i+1 <= len && tokens[i] == " " && haskey(HMS, lowercase(tokens[i+1])))
+                    (i+1 <= len && tokens[i] == " " && haskey(HMS, lowercase(tokens[i+1]))) ||
+                    ((i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])) &&
+                    ((i+2 <= len && haskey(HMS, lowercase(tokens[i+2])))||
+                    (i+3 <= len && tokens[i+2] == " " && haskey(HMS, lowercase(tokens[i+3])))))
                 # HH[ ]h or MM[ ]m or SS[.ss][ ]s
+
+                temp = parse(Float64, token)
+                if tokens[i] == "."
+                    temp = parse(Float64, string(token, ".", tokens[i+1]))
+                    i += 2
+                end
                 if tokens[i] == " "
                     i += 1
                 end
                 idx = HMS[lowercase(tokens[i])]
                 while true
                     if idx == :hour
-                        temp = parse(Float64, token)
                         res["hour"] = floor(Int, temp)
                         temp = temp % 1
                         if temp != 0
                             res["minute"] = round(Int, 60 * temp)
                         end
                     elseif idx == :minute
-                        temp = parse(Float64, token)
                         res["minute"] = floor(Int, temp)
                         temp = temp % 1
                         if temp != 0
                             res["second"] = round(Int, 60 * temp)
                         end
                     elseif idx == :second
-                        temp = parse(Float64, token)
                         res["second"] = floor(Int, temp)
                         temp = temp % 1
                         if temp != 0
@@ -172,9 +179,14 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     end
                     # 12h00
                     token = tokens[i]
-                    if isnull(tryparse(Float64, token))
+                    if !isdigit(token)
                         break
                     else
+                        temp = parse(Float64, token)
+                        if tokens[i] == "."
+                            temp = parse(Float64, string(token, ".", tokens[i+1]))
+                            i += 2
+                        end
                         i += 1
                         if i <= len && haskey(HMS, lowercase(tokens[i]))
                             idx = HMS[lowercase(tokens[i])]
@@ -187,41 +199,31 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
             elseif i+1 <= len && tokens[i] == ":"
                 # HH:MM[:SS[.ss]]
-                res["hour"] = floor(Int, parse(Float64, token))
-                i += 1
-                value = parse(Float64, tokens[i])
-                res["minute"] = floor(Int, value)
-                if value % 1 != 0
-                    res["second"] = round(Int, 60 * (value % 1))
-                end
-                i += 1
-                if i < len && tokens[i] == ":"
-                    temp = parse(Float64, tokens[i+1])
-                    res["second"] = floor(Int, temp)
-                    res["millisecond"] = round(Int, temp%1*1000)
+                res["hour"] = parse(Int, token)
+                res["minute"] = parse(Int, tokens[i+1])
+                i += 2
+                if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
+                    res["second"] = round(Int, 60 * parse(Float64, string(".", tokens[i+1])))
                     i += 2
+                elseif i < len && tokens[i] == ":"
+                    res["second"] = parse(Int, tokens[i+1])
+                    i += 2
+                    if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
+                        res["millisecond"] = round(Int, 1000 * parse(Float64, string(".", tokens[i+1])))
+                        i += 2
+                    end
                 end
             elseif i <= len && tokens[i] in ("-","/",".")
                 sep = tokens[i]
-                push!(ymd, round(Int, parse(Float64, token)))
+                push!(ymd, parse(Int, token))
                 i += 1
                 if i <= len && !(lowercase(tokens[i]) in JUMP)
-                    if isnull(tryparse(Float64, tokens[i]))
+                    if isdigit(tokens[i])
+                        push!(ymd, parse(Int, tokens[i]))
+                    else
                         if haskey(monthtovalue, lowercase(tokens[i]))
                             push!(ymd, monthtovalue[lowercase(tokens[i])])
                             mstridx = length(ymd)
-                        end
-                    else
-                        temp = parse(Float64, tokens[i])
-                        push!(ymd, floor(Int, temp))
-                        if temp % 1 != 0
-                            if length(tokens[i]) <= 5
-                                # DD.YY
-                                push!(ymd, round(Int, (temp % 1) * 100))
-                            else
-                                # DD.YYYY
-                                push!(ymd, round(Int, (temp % 1) * 10000))
-                            end
                         end
                     end
                     i += 1
@@ -232,7 +234,7 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                             push!(ymd, monthtovalue[lowercase(tokens[i])])
                             mstridx = len(ymd)
                         else
-                            push!(ymd, round(Int, parse(Float64, tokens[i])))
+                            push!(ymd, parse(Int, tokens[i]))
                         end
                         i += 1
                     end
@@ -242,18 +244,18 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 if i+1 <= len && haskey(AMPM, lowercase(tokens[i+1]))
                     # 12 am
                     i += 1
-                    res["hour"] = round(Int, parse(Float64, token))
+                    res["hour"] = parse(Int, token)
                     res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
                     i += 1
                 else
-                    push!(ymd, round(Int, parse(Float64, token)))
+                    push!(ymd, parse(Int, token))
                     if i > len || !haskey(monthtovalue, lowercase(tokens[i]))
                         i += 1
                     end
                 end
             elseif i <= len && haskey(AMPM, lowercase(tokens[i]))
                 # 12am
-                res["hour"] = round(Int, parse(Float64, token))
+                res["hour"] = parse(Int, token)
                 res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
                 i += 1
             elseif !fuzzy
@@ -277,12 +279,12 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         # Jan-01[-99]
                         sep = tokens[i]
                         i += 1
-                        push!(ymd, round(Int, parse(Float64, tokens[i])))
+                        push!(ymd, parse(Int, tokens[i]))
                         i += 1
                         if i <= len && tokens[i] == sep
                             # Jan-01-99
                             i += 1
-                            push!(ymd, round(Int, parse(Float64, tokens[i])))
+                            push!(ymd, parse(Int, tokens[i]))
                             i += 1
                         end
                     elseif (i+3 <= len && tokens[i] == tokens[i+2] == " " &&
@@ -496,13 +498,13 @@ end
 
 function _parsedatetokens(input::AbstractString)
     tokens = AbstractString[]
-    regex = r"^(?<token>(\d+\.\d+(?=[^\.\d]|$))|(\d+)|(((?=[^\d])\w)+))(?<extra>.*)$"
+    regex = r"^(\d+|((?=[^\d])\w)+)"
     input = strip(input)
     while !isempty(input)
         if ismatch(regex,input)
-            tokenmatch = match(regex, input)
-            push!(tokens, tokenmatch["token"])
-            input = tokenmatch["extra"]
+            tokenmatch = match(regex, input).match
+            push!(tokens, tokenmatch)
+            input = input[tokenmatch.endof+1:end]
         else
             if ismatch(r"\s", string(input[1:1]))
                 push!(tokens, " ")
