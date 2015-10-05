@@ -443,15 +443,22 @@ function parsedate(datetimestring::AbstractString, fuzzy::Bool=false;
             res["minute"], res["second"], res["millisecond"]), res["timezone"])
 end
 
-"Converts a 2 digit year to a 4 digit one near year 2000 (e.g. 95 becomes 1995)"
-function convertyear(year::Int)
-    if year > 99
-        return year
-    elseif year < 50
-        return year + 2000
-    else
-        return year + 1900
+"Converts a 2 digit year to a 4 digit one within 50 years of convert_year. At the momment
+ convert_year defaults to 2000, if people are still using 2 digit years after year 2049
+ (hopefully not) then we can change the default to year(today())"
+function convertyear(year::Int, convert_year=2000)
+    if year <= 99
+        century = convert_year - convert_year % 100
+        year += century
+        if abs(year - convert_year) >= 50
+            if year < convert_year
+                year += 100
+            else
+                year -= 100
+            end
+        end
     end
+    return year
 end
 
 function converthour(hour::Int, ampm::Symbol)
