@@ -70,6 +70,30 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         return default
     end
 
+    res = _parsedate(datetimestring, fuzzy=fuzzy, default=default,
+        timezone_infos=timezone_infos, dayfirst=dayfirst, yearfirst=yearfirst, locale=locale)
+
+    # Fill in default values if none exits
+    res["year"] = convertyear(get(res, "year", year(default)))
+    get!(res, "month", month(default))
+    get!(res, "day", day(default))
+    get!(res, "hour", hour(default))
+    get!(res, "minute", minute(default))
+    get!(res, "second", second(default))
+    get!(res, "millisecond", millisecond(default))
+    get!(res, "timezone", default.timezone)
+
+    return ZonedDateTime(DateTime(res["year"], res["month"], res["day"], res["hour"],
+            res["minute"], res["second"], res["millisecond"]), res["timezone"])
+end
+
+function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
+    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), TimeZone("UTC")),
+    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(),
+    dayfirst::Bool=false,
+    yearfirst::Bool=false,
+    locale::AbstractString="english",
+)
     weekday = Dict{UTF8String, Int}()
     for (value, name) in VALUETODAYOFWEEK[locale]
         weekday[lowercase(name)] = value
@@ -444,18 +468,7 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         error("Failed to parse date")
     end
 
-    # Fill in default values if none exits
-    res["year"] = convertyear(get(res, "year", year(default)))
-    get!(res, "month", month(default))
-    get!(res, "day", day(default))
-    get!(res, "hour", hour(default))
-    get!(res, "minute", minute(default))
-    get!(res, "second", second(default))
-    get!(res, "millisecond", millisecond(default))
-    get!(res, "timezone", default.timezone)
-
-    return ZonedDateTime(DateTime(res["year"], res["month"], res["day"], res["hour"],
-            res["minute"], res["second"], res["millisecond"]), res["timezone"])
+    return res
 end
 
 function trytimezone(tzname::AbstractString;
