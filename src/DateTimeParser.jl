@@ -93,21 +93,8 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     yearfirst::Bool=false,
     locale::AbstractString="english",
 )
-    weekday = Dict{UTF8String, Int}()
-    for (value, name) in VALUETODAYOFWEEK[locale]
-        weekday[lowercase(name)] = value
-    end
-    for (value, name) in VALUETODAYOFWEEKABBR[locale]
-        weekday[lowercase(name)] = value
-    end
-
-    monthtovalue = Dict{UTF8String, Int}()
-    for (value, name) in VALUETOMONTH[locale]
-        monthtovalue[lowercase(name)] = value
-    end
-    for (value, name) in VALUETOMONTHABBR[locale]
-        monthtovalue[lowercase(name)] = value
-    end
+    month = monthtovalue(locale)
+    weekday = weekdaytovalue(locale)
 
     res = Dict()
 
@@ -244,8 +231,8 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if isdigit(tokens[i])
                         push!(ymd, parse(Int, tokens[i]))
                     else
-                        if haskey(monthtovalue, lowercase(tokens[i]))
-                            push!(ymd, monthtovalue[lowercase(tokens[i])])
+                        if haskey(month, lowercase(tokens[i]))
+                            push!(ymd, month[lowercase(tokens[i])])
                             mstridx = length(ymd)
                         end
                     end
@@ -253,8 +240,8 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if i <= len && tokens[i] == sep
                         # We have three members
                         i += 1
-                        if haskey(monthtovalue, lowercase(tokens[i]))
-                            push!(ymd, monthtovalue[lowercase(tokens[i])])
+                        if haskey(month, lowercase(tokens[i]))
+                            push!(ymd, month[lowercase(tokens[i])])
                             mstridx = len(ymd)
                         else
                             push!(ymd, parse(Int, tokens[i]))
@@ -280,9 +267,9 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 # Weekday
                 res["weekday"] = weekday[lowercase(token)]
                 i += 1
-            elseif haskey(monthtovalue, lowercase(token))
+            elseif haskey(month, lowercase(token))
                 # Month name
-                push!(ymd, round(Int, monthtovalue[lowercase(token)]))
+                push!(ymd, round(Int, month[lowercase(token)]))
                 mstridx = length(ymd)
                 i += 1
                 if i <= len
@@ -468,6 +455,28 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     end
 
     return res
+end
+
+function monthtovalue(locale::AbstractString="english")
+    monthtovalue = Dict{UTF8String, Int}()
+    for (value, name) in VALUETOMONTH[locale]
+        monthtovalue[lowercase(name)] = value
+    end
+    for (value, name) in VALUETOMONTHABBR[locale]
+        monthtovalue[lowercase(name)] = value
+    end
+    return monthtovalue
+end
+
+function weekdaytovalue(locale::AbstractString="english")
+    weekdaytovalue = Dict{UTF8String, Int}()
+    for (value, name) in VALUETODAYOFWEEK[locale]
+        weekdaytovalue[lowercase(name)] = value
+    end
+    for (value, name) in VALUETODAYOFWEEKABBR[locale]
+        weekdaytovalue[lowercase(name)] = value
+    end
+    return weekdaytovalue
 end
 
 function trytimezone(tzname::AbstractString;
