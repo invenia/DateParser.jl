@@ -96,22 +96,19 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     month = monthtovalue(locale)
     weekday = weekdaytovalue(locale)
 
-    res = Dict()
-
-    # year/month/day list
-    ymd = sizehint!(Int[], 3)
-    # Index of the month string in ymd
-    mstridx = -1
-
+    ymd = sizehint!(Int[], 3)  # year/month/day list
+    mstridx = -1  # Index of the month string in ymd
     tokens = _parsedatetokens(datetimestring)
     len = length(tokens)
+
+    res = Dict()
     i = 1
     while i <= len
         token = tokens[i]
         tokenlength = length(token)
         if isdigit(token)
             # Token is a number
-            i += 1
+            i += 1 # We want to look at what comes after the number
             if length(ymd) == 3 && tokenlength in (2,4) &&
                 (i>=len || (tokens[i] != ":" && !haskey(HMS, lowercase(tokens[i]))))
                 # 19990101T23[59]
@@ -273,7 +270,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 mstridx = length(ymd)
                 i += 1
                 if i <= len
-                    if tokens[i] in ("-", "/")
+                    if tokens[i] in ("-", "/", ".")
                         # Jan-01[-99]
                         sep = tokens[i]
                         i += 1
@@ -285,16 +282,13 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                             push!(ymd, parse(Int, tokens[i]))
                             i += 1
                         end
-                    elseif (i+3 <= len && tokens[i] == tokens[i+2] == " " &&
-                            tokens[i+1] in PERTAIN)
+                    elseif i+3 <= len && tokens[i] == tokens[i+2] == " " &&
+                            tokens[i+1] in PERTAIN && isdigit(tokens[i+3])
                         # Jan of 01
                         # In this case, 01 is clearly year
-                        try
-                            # Make a guess
-                            value = parse(Int, tokens[i+3])
-                            # Convert it here to become unambiguous
-                            push!(ymd, convertyear(value))
-                        end
+                        value = parse(Int, tokens[i+3])
+                        # Convert it here to become unambiguous
+                        push!(ymd, convertyear(value))
                         i += 4
                     end
                 end
@@ -302,29 +296,6 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 # am/pm
                 res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
                 i += 1
-            elseif haskey(res, "hour") && !haskey(res, "tzname") &&
-                    !haskey(res, "tzoffset") &&
-                    ismatch(r"^\w*$", tokens[i]) && !(lowercase(tokens[i]) in JUMP)
-                # Timezone name
-                res["tzname"] = tokens[i]
-                while i+2 <= len && tokens[i+1] == "/"
-                    res["tzname"] = string(res["tzname"], "/", tokens[i+2])
-                    i += 2
-                end
-                i += 1
-                # Check for something like GMT+3, or BRST+3. Notice
-                # that it doesn't mean "I am 3 hours after GMT", but
-                # "my time +3 is GMT". If found, we reverse the
-                # logic so that timezone parsing code will get it
-                # right.
-                if i <= len && tokens[i] in ("+", "-")
-                    tokens[i] = tokens[i] == "+" ? "-" : "+"
-                    if lowercase(res["tzname"]) in UTCZONE
-                        # With something like GMT+3, the timezone
-                        # is *not* GMT.
-                        delete!(res, "tzname")
-                    end
-                end
             elseif haskey(res, "hour") && tokens[i] in ("+", "-")
                 # Numbered timzone
                 signal = tokens[i] == "+" ? 1 : -1
@@ -352,11 +323,34 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 i += 1
                 res["tzoffset"] *= signal
             elseif i+2 <= len && tokens[i] == "(" &&
-                    tokens[i+2] == ")" && ismatch(r"^\w*$", tokens[i+1])
+                    tokens[i+2] == ")" && ismatch(r"^\w+$", tokens[i+1])
                 # Look for a timezone name between parenthesis
                 # -0300 (BRST)
                 res["tzname"] = tokens[i+1]
                 i += 3
+            elseif haskey(res, "hour") && !haskey(res, "tzname") &&
+                    !haskey(res, "tzoffset") &&
+                    ismatch(r"^\w+$", tokens[i]) && !(lowercase(tokens[i]) in JUMP)
+                # Timezone name
+                res["tzname"] = tokens[i]
+                while i+2 <= len && tokens[i+1] == "/"
+                    res["tzname"] = string(res["tzname"], "/", tokens[i+2])
+                    i += 2
+                end
+                i += 1
+                # Check for something like GMT+3, or BRST+3. Notice
+                # that it doesn't mean "I am 3 hours after GMT", but
+                # "my time +3 is GMT". If found, we reverse the
+                # logic so that timezone parsing code will get it
+                # right.
+                if i <= len && tokens[i] in ("+", "-")
+                    tokens[i] = tokens[i] == "+" ? "-" : "+"
+                    if lowercase(res["tzname"]) in UTCZONE
+                        # With something like GMT+3, the timezone
+                        # is *not* GMT.
+                        delete!(res, "tzname")
+                    end
+                end
             elseif !(lowercase(tokens[i]) in JUMP) && !fuzzy
                 error("Failed to parse date")
             else
