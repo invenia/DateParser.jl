@@ -39,7 +39,7 @@ default = ZonedDateTime(DateTime(1976, 7, 4), timezone)
 @test parse(DateTime, "February of 1999", default=default) == DateTime(1999, 2, 4)
 @test parse(DateTime, "12h am", default=default) == DateTime(1976, 7, 4, 0)
 @test parse(DateTime, "1h pm", default=default) == DateTime(1976, 7, 4, 13)
-@test parse(ZonedDateTime, "13h GMT+3", default=default).timezone.offset.utc == Dates.Second(-10800)
+@test parse(ZonedDateTime, "13h Etc/GMT+3", default=default).timezone.offset.utc == Dates.Second(-10800)
 @test parse(ZonedDateTime, "13h +03:00", default=default).timezone.offset.utc == Dates.Second(10800)
 @test parse(ZonedDateTime, "13h -0300", default=default).timezone.offset.utc == Dates.Second(-10800)
 @test parse(ZonedDateTime, "13h +03", default=default).timezone.offset.utc == Dates.Second(10800)
@@ -85,8 +85,8 @@ timezone_infos = Dict{AbstractString, TimeZone}("TEST" => FixedTimeZone("TEST", 
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 FAIL", default=default))
 @test parse(ZonedDateTime, "1999 2:30 +01:00", default=default).timezone.name == :local
 @test parse(ZonedDateTime, "1999 2:30 +01:00", default=default).timezone.offset.utc == Dates.Second(3600)
-@test parse(ZonedDateTime, "1999 2:30 TEST -01:00", default=default).timezone.name == :TEST
-@test parse(ZonedDateTime, "1999 2:30 TEST -01:00", default=default).timezone.offset.utc == Dates.Second(-3600)
+@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", default=default).timezone.name == :TEST
+@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", default=default).timezone.offset.utc == Dates.Second(-3600)
 @test parse(ZonedDateTime, "1999 2:30 America/Winnipeg", default=default).timezone.name == symbol("America/Winnipeg")
 
 @test parse(DateTime, "21:38, 30 May 2006 (UTC)", default=default) == DateTime(2006, 5, 30, 21, 38)

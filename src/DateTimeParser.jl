@@ -81,7 +81,14 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     get!(res, "minute", minute(default))
     get!(res, "second", second(default))
     get!(res, "millisecond", millisecond(default))
-    get!(res, "timezone", default.timezone)
+    if !haskey(res, "timezone")
+        if haskey(res, "tzoffset")
+            tzname = get(res, "tzname", "local")
+            res["timezone"] = FixedTimeZone(tzname, res["tzoffset"])
+        else
+            res["timezone"] = default.timezone
+        end
+    end
 
     return ZonedDateTime(DateTime(res["year"], res["month"], res["day"], res["hour"],
             res["minute"], res["second"], res["millisecond"]), res["timezone"])
@@ -296,7 +303,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 # am/pm
                 res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
                 i += 1
-            elseif haskey(res, "hour") && tokens[i] in ("+", "-")
+            elseif tokens[i] in ("+", "-") && !haskey(res, "tzoffset")
                 # Numbered timzone
                 signal = tokens[i] == "+" ? 1 : -1
                 try
@@ -322,34 +329,61 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
                 i += 1
                 res["tzoffset"] *= signal
-            elseif i+2 <= len && tokens[i] == "(" &&
+            elseif !haskey(res, "tzname") && i+2 <= len && tokens[i] == "(" &&
                     tokens[i+2] == ")" && ismatch(r"^\w+$", tokens[i+1])
                 # Look for a timezone name between parenthesis
-                # -0300 (BRST)
+                oldindex = i
                 res["tzname"] = tokens[i+1]
-                i += 3
-            elseif haskey(res, "hour") && !haskey(res, "tzname") &&
-                    !haskey(res, "tzoffset") &&
+                i += 2
+                while i <= len && tokens[i] != ")"
+                    # -0300 (BRST)
+                    if i+2 <= len && tokens[i+1] == "/"
+                        res["tzname"] = string(res["tzname"], "/", tokens[i+2])
+                        i += 2
+                    elseif fuzzy == true
+                        delete!(res, "tzname")
+                        i = oldindex
+                        break
+                    else
+                        error("Faild to parse date")
+                    end
+                end
+
+                if haskey(res, "tzname")
+                    value = trytimezone(res["tzname"], timezone_infos=timezone_infos)
+                    if !isnull(value)
+                        res["timezone"] = get(value)
+                    end
+                end
+
+                i += 1
+            elseif !haskey(res, "tzname") &&
                     ismatch(r"^\w+$", tokens[i]) && !(lowercase(tokens[i]) in JUMP)
-                # Timezone name
+                # Timezone name?
+                oldindex = i
+
                 res["tzname"] = tokens[i]
                 while i+2 <= len && tokens[i+1] == "/"
                     res["tzname"] = string(res["tzname"], "/", tokens[i+2])
                     i += 2
                 end
                 i += 1
-                # Check for something like GMT+3, or BRST+3. Notice
-                # that it doesn't mean "I am 3 hours after GMT", but
-                # "my time +3 is GMT". If found, we reverse the
-                # logic so that timezone parsing code will get it
-                # right.
-                if i <= len && tokens[i] in ("+", "-")
-                    tokens[i] = tokens[i] == "+" ? "-" : "+"
-                    if lowercase(res["tzname"]) in UTCZONE
-                        # With something like GMT+3, the timezone
-                        # is *not* GMT.
-                        delete!(res, "tzname")
-                    end
+                # Check for something like GMT+3, or BRST+3
+                if i+1 <= len && tokens[i] in ("+", "-") &&
+                        isdigit(tokens[i+1]) && length(tokens[i+1]) in (1,2) &&
+                        (i+2 > len || tokens[i+2] != ":")
+                    res["tzname"] = string(res["tzname"], tokens[i], tokens[i+1])
+                    i += 2
+                end
+
+                value = trytimezone(res["tzname"], timezone_infos=timezone_infos)
+                if !isnull(value)
+                    res["timezone"] = get(value)
+                elseif fuzzy == true
+                    delete!(res, "tzname")
+                    i = oldindex+1
+                else
+                    error("Faild to parse date")
                 end
             elseif !(lowercase(tokens[i]) in JUMP) && !fuzzy
                 error("Failed to parse date")
@@ -427,25 +461,6 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 res["month"], res["day"], res["year"] = ymd
             end
         end
-    end
-
-    if haskey(res, "tzname")
-        value = trytimezone(res["tzname"], timezone_infos=timezone_infos)
-        if !isnull(value)
-            res["timezone"] = get(value)
-        end
-    end
-
-    if !haskey(res, "timezone") && haskey(res, "tzoffset")
-        if haskey(res, "tzname")
-            res["timezone"] = FixedTimeZone(res["tzname"], res["tzoffset"])
-        else
-            res["timezone"] = FixedTimeZone("local",res["tzoffset"])
-        end
-    end
-
-    if haskey(res, "tzname") && !haskey(res, "timezone")
-        error("Failed to parse date")
     end
 
     return res
