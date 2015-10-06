@@ -59,7 +59,7 @@ const UTCZONE = ("utc", "gmt", "z",)
 
 function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), TimeZone("UTC")),
-    timezone_infos::Dict{AbstractString, TimeZone} = Dict{AbstractString, TimeZone}(), # Specify what a timezone is
+    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
     locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
@@ -425,6 +425,25 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         end
     end
 
+    if haskey(res, "tzname")
+        value = trytimezone(res["tzname"], timezone_infos=timezone_infos)
+        if !isnull(value)
+            res["timezone"] = get(value)
+        end
+    end
+
+    if !haskey(res, "timezone") && haskey(res, "tzoffset")
+        if haskey(res, "tzname")
+            res["timezone"] = FixedTimeZone(res["tzname"], res["tzoffset"])
+        else
+            res["timezone"] = FixedTimeZone("local",res["tzoffset"])
+        end
+    end
+
+    if haskey(res, "tzname") && !haskey(res, "timezone")
+        error("Failed to parse date")
+    end
+
     # Fill in default values if none exits
     res["year"] = convertyear(get(res, "year", year(default)))
     get!(res, "month", month(default))
@@ -433,28 +452,24 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     get!(res, "minute", minute(default))
     get!(res, "second", second(default))
     get!(res, "millisecond", millisecond(default))
-
-    # determine timezone
-    if !haskey(res, "tzname") && !haskey(res, "tzoffset")
-        res["timezone"] = default.timezone
-    elseif !haskey(res, "tzoffset")
-        if haskey(timezone_infos, res["tzname"])
-            res["timezone"] = timezone_infos[res["tzname"]]
-        elseif res["tzname"] in TimeZones.timezone_names()
-            res["timezone"] = TimeZone(res["tzname"])
-        elseif lowercase(res["tzname"]) in UTCZONE
-            res["timezone"] = TimeZone("utc")
-        else
-            error("Failed to parse date")
-        end
-    elseif !haskey(res, "tzname")
-        res["timezone"] = FixedTimeZone("local",res["tzoffset"])
-    else
-        res["timezone"] = FixedTimeZone(res["tzname"], res["tzoffset"])
-    end
+    get!(res, "timezone", default.timezone)
 
     return ZonedDateTime(DateTime(res["year"], res["month"], res["day"], res["hour"],
             res["minute"], res["second"], res["millisecond"]), res["timezone"])
+end
+
+function trytimezone(tzname::AbstractString;
+    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}()
+)
+    if haskey(timezone_infos, tzname)
+        return Nullable{TimeZone}(timezone_infos[tzname])
+    elseif tzname in TimeZones.timezone_names()
+        return Nullable{TimeZone}(TimeZone(tzname))
+    elseif lowercase(tzname) in UTCZONE
+        return Nullable{TimeZone}(TimeZone("utc"))
+    else
+        return Nullable{TimeZone}()
+    end
 end
 
 "Converts a 2 digit year to a 4 digit one within 50 years of convert_year. At the momment
