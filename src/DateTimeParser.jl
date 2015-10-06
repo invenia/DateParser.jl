@@ -70,8 +70,8 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         return default
     end
 
-    res = _parsedate(datetimestring, fuzzy=fuzzy, default=default,
-        timezone_infos=timezone_infos, dayfirst=dayfirst, yearfirst=yearfirst, locale=locale)
+    res = _parsedate(datetimestring, fuzzy=fuzzy, timezone_infos=timezone_infos,
+        dayfirst=dayfirst, yearfirst=yearfirst, locale=locale)
 
     # Fill in default values if none exits
     res["year"] = convertyear(get(res, "year", year(default)))
@@ -88,7 +88,6 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
 end
 
 function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
-    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), TimeZone("UTC")),
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(),
     dayfirst::Bool=false,
     yearfirst::Bool=false,
