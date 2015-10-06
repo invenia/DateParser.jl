@@ -239,29 +239,17 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         i += 1
                     end
                 end
-            elseif i > len || lowercase(tokens[i]) in JUMP ||
-                    haskey(monthtovalue, lowercase(tokens[i]))
-                if i+1 <= len && haskey(AMPM, lowercase(tokens[i+1]))
-                    # 12 am
+            elseif i <= len && haskey(AMPM, lowercase(tokens[i])) ||
+                i+1 <= len && tokens[i] == " " && haskey(AMPM, lowercase(tokens[i+1]))
+                if tokens[i] == " "
                     i += 1
-                    res["hour"] = parse(Int, token)
-                    res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
-                    i += 1
-                else
-                    push!(ymd, parse(Int, token))
-                    if i > len || !haskey(monthtovalue, lowercase(tokens[i]))
-                        i += 1
-                    end
                 end
-            elseif i <= len && haskey(AMPM, lowercase(tokens[i]))
                 # 12am
                 res["hour"] = parse(Int, token)
                 res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
                 i += 1
-            elseif !fuzzy
-                error("Failed to parse date")
             else
-                i += 1
+                push!(ymd, parse(Int, token))
             end
         else
             # Token is not a number
