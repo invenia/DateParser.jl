@@ -6,48 +6,57 @@ Automatic parsing of DateTime strings
 
 ## Usage
 
-To use simply pass a string to `parsedate`, `parsedate` returns a `ZonedDateTime`.
+`DateTimeParser` adds `Date`, `DateTime`, and `ZonedDateTime` to `Base.parse` and `Base.tryparse`.
 
 ```julia
 julia> using DateTimeParser
 
-julia> parsedate("Oct 13, 1994 17:10:02.455 -05:00")
-1994-10-13T17:10:02.455-05:00
+julia> parse(DateTime, "Oct 13, 1994 17:10")
+1994-10-13T17:10:00
 ```
 
-For `fuzzy` parsing pass `true` as the second parameter, unknown tokens in the string will be ignored. By default `fuzzy = false`.
+Use the `fuzzy` keyword Argument for fuzzy parsing. If `fuzzy=true` unknown tokens in the string will be ignored. By default `fuzzy=false`.
 
 ```julia
-julia> parsedate("It is Oct 13, 1994 at sometime around 17:10:02.455 with a tzoffset of -05:00", true)
-1994-10-13T17:10:02.455-05:00
+julia> tryparse(DateTime, "It is Oct 13, 1994 at around 17:10")
+Nullable{DateTime}()
+
+julia> tryparse(DateTime, "It is Oct 13, 1994 at around 17:10", fuzzy=true)
+Nullable(1994-10-13T17:10:00)
 ```
 
-If you omit the date, time or timezone they will be filled with a default date of `today`, time of `00:00:00` and timezone of your `localzone`. You can change the default by passing your own `default = ZonedDateTime`.
+If you want to fill in omitted fields with specific values use the `default` keyword Argument. `default` accepts a `ZonedDateTime`. By default `default` is set to `Jan 1, year(today()) 00:00:00 UTC`.
 
 ```julia
 julia> using TimeZones
 
-julia> default = ZonedDateTime(DateTime(2012, 05, 04, 13, 59), TimeZone("UTC"))
-2012-05-04T13:59:00+00:00
+julia> parse(ZonedDateTime, "Oct 13, 1994")
+1994-10-13T00:00:00+00:00
 
-julia> parsedate("12:30", default=default)
-2012-05-04T12:30:00+00:00
+julia> parse(ZonedDateTime, "17:10")
+2015-01-01T17:10:00+00:00
 
-julia> parsedate("2014/12/04", default=default)
-2014-12-04T13:59:00+00:00
+julia> default = ZonedDateTime(DateTime(1994, 10, 13, 17, 10), TimeZone("America/Winnipeg"))
+1994-10-13T17:10:00-05:00
+
+julia> parse(ZonedDateTime, "April 22, 1993", default=default)
+1993-04-22T17:10:00-05:00
+
+julia> parse(ZonedDateTime, "13:20", default=default)
+1994-10-13T13:20:00-05:00
 ```
 
-For ambiguous dates like `04/02/12` you can use the flags `dayfirst` or `yearfirst` to determine what the date should be. By default they are both set to `false`.
+For ambiguous dates like `04/02/12` you can use the `dayfirst` or `yearfirst` keyword Arguments to determine what the date should be. By default they are both set to `false`.
 
 ```julia
-julia> parsedate("4/2/12 13:01:02 Z")
-2012-04-02T13:01:02+00:00
+julia> parse(Date, "04/02/03")
+2003-04-02
 
-julia> parsedate("4/2/12 13:01:02 Z", dayfirst=true)
-2012-02-04T13:01:02+00:00
+julia> parse(Date, "04/02/03", dayfirst=true)
+2003-02-04
 
-julia> parsedate("4/2/12 13:01:02 Z", yearfirst=true)
-2004-02-12T13:01:02+00:00
+julia> parse(Date, "04/02/03", yearfirst=true)
+2004-02-03
 ```
 
 As shown above, 2 digit years will get converted to a 4 digit year near year 2000. 00 to 49 becomes 2000 to 2049 and 50 to 99 becomes 1950 to 1999.
