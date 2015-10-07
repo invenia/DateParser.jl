@@ -13,5 +13,5 @@ script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia -e 'Pkg.clone(pwd()); Pkg.build("DateTimeParser"); Pkg.test("DateTimeParser"; coverage=true)'
 after_success:
-  - julia -e 'cd(Pkg.dir("TimeZones")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())';
-  - julia -e 'cd(Pkg.dir("TimeZones")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
+  - julia -e 'cd(Pkg.dir("DateTimeParser")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())';
+  - julia -e 'cd(Pkg.dir("DateTimeParser")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
