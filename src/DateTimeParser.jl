@@ -6,25 +6,11 @@ import Base.Dates: VALUETODAYOFWEEK, VALUETODAYOFWEEKABBR, VALUETOMONTH, VALUETO
 export parse, tryparse
 
 
-function Base.tryparse(::Type{ZonedDateTime}, str::AbstractString; args...)
+function Base.tryparse{T<:TimeType}(::Type{T}, str::AbstractString; args...)
     try
-        return Nullable{ZonedDateTime}(parse(ZonedDateTime, str; args...))
+        return Nullable{T}(parse(T, str; args...))
     catch
-        return Nullable{ZonedDateTime}()
-    end
-end
-function Base.tryparse(::Type{DateTime}, str::AbstractString; args...)
-    try
-        return Nullable{DateTime}(parse(DateTime, str; args...))
-    catch
-        return Nullable{DateTime}()
-    end
-end
-function Base.tryparse(::Type{Date}, str::AbstractString; args...)
-    try
-        return Nullable{Date}(parse(Date, str; args...))
-    catch
-        return Nullable{Date}()
+        return Nullable{T}()
     end
 end
 
