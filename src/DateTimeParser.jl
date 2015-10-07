@@ -158,9 +158,10 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     (i+3 <= len && tokens[i+2] == " " && haskey(HMS, lowercase(tokens[i+3])))))
                 # HH[ ]h or MM[ ]m or SS[.ss][ ]s
 
-                temp = parse(Float64, token)
+                value = parse(Int, token)
+                decimal = 0.0
                 if tokens[i] == "."
-                    temp = parse(Float64, string(token, ".", tokens[i+1]))
+                    decimal = parse(Float64, string(".", tokens[i+1]))
                     i += 2
                 end
                 if tokens[i] == " "
@@ -169,22 +170,19 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 idx = HMS[lowercase(tokens[i])]
                 while true
                     if idx == :hour
-                        res["hour"] = floor(Int, temp)
-                        temp = temp % 1
-                        if temp != 0
-                            res["minute"] = round(Int, 60 * temp)
+                        res["hour"] = value
+                        if decimal != 0
+                            res["minute"] = round(Int, 60 * decimal)
                         end
                     elseif idx == :minute
-                        res["minute"] = floor(Int, temp)
-                        temp = temp % 1
-                        if temp != 0
-                            res["second"] = round(Int, 60 * temp)
+                        res["minute"] = value
+                        if decimal != 0
+                            res["second"] = round(Int, 60 * decimal)
                         end
                     elseif idx == :second
-                        res["second"] = floor(Int, temp)
-                        temp = temp % 1
-                        if temp != 0
-                            res["millisecond"] = round(Int, 1000 * temp)
+                        res["second"] = value
+                        if decimal != 0
+                            res["millisecond"] = round(Int, 1000 * decimal)
                         end
                     end
                     i += 1
@@ -196,9 +194,10 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if !isdigit(token)
                         break
                     else
-                        temp = parse(Float64, token)
-                        if tokens[i] == "."
-                            temp = parse(Float64, string(token, ".", tokens[i+1]))
+                        value = parse(Int, token)
+                        decimal = 0.0
+                        if tokens[i] == "." && i+1 <= len && isdigit(tokens[i+1])
+                            decimal = parse(Float64, string(".", tokens[i+1]))
                             i += 2
                         end
                         i += 1
