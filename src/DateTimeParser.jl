@@ -303,30 +303,28 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 # am/pm
                 res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
                 i += 1
-            elseif tokens[i] in ("+", "-") && !haskey(res, "tzoffset")
+            elseif tokens[i] in ("+", "-") && !haskey(res, "tzoffset") && i+1 <= len && isdigit(tokens[i+1])
                 # Numbered timzone
                 signal = tokens[i] == "+" ? 1 : -1
-                try
-                    i += 1
-                    tokenlength = length(tokens[i])
-                    hour = minute = 0
-                    if tokenlength == 4
-                        # -0300
-                        hour, minute = parse(Int, tokens[i][1:2]), parse(Int, tokens[i][3:end])
-                    elseif i+1 <= len && tokens[i+1] == ":"
-                        # -03:00
-                        hour, minute = parse(Int, tokens[i]), parse(Int, tokens[i+2])
-                        i += 2
-                    elseif tokenlength <= 2
-                        # -[0]3
-                        hour = parse(Int, tokens[i])
-                    else
-                        error("Faild to read timezone offset after +/-")
-                    end
-                    res["tzoffset"] = hour * 3600 + minute * 60
-                catch
+
+                i += 1
+                tokenlength = length(tokens[i])
+                hour = minute = 0
+                if tokenlength == 4
+                    # -0300
+                    hour, minute = parse(Int, tokens[i][1:2]), parse(Int, tokens[i][3:end])
+                elseif i+2 <= len && tokens[i+1] == ":" && isdigit(tokens[i+2])
+                    # -03:00
+                    hour, minute = parse(Int, tokens[i]), parse(Int, tokens[i+2])
+                    i += 2
+                elseif tokenlength <= 2
+                    # -[0]3
+                    hour = parse(Int, tokens[i])
+                else
                     error("Faild to read timezone offset after +/-")
                 end
+                res["tzoffset"] = hour * 3600 + minute * 60
+
                 i += 1
                 res["tzoffset"] *= signal
             elseif !haskey(res, "tzname") && i+2 <= len && tokens[i] == "(" &&
