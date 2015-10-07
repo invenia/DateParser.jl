@@ -6,6 +6,12 @@ using TimeZones
 
 timezone = TimeZone("Europe/Warsaw")
 default = ZonedDateTime(DateTime(1976, 7, 4), timezone)
+timezone_infos = Dict{AbstractString, TimeZone}(
+    "TEST" => FixedTimeZone("TEST", 3600),
+    "UTC" => FixedTimeZone("UTC", 0),
+    "GMT" => FixedTimeZone("GMT", 0),
+    "Etc/GMT+3" => FixedTimeZone("GMT+3", -10800),
+)
 
 # Test all code paths
 @test parse(ZonedDateTime, "", default=default) == default
@@ -39,12 +45,12 @@ default = ZonedDateTime(DateTime(1976, 7, 4), timezone)
 @test parse(DateTime, "February of 1999", default=default) == DateTime(1999, 2, 4)
 @test parse(DateTime, "12h am", default=default) == DateTime(1976, 7, 4, 0)
 @test parse(DateTime, "1h pm", default=default) == DateTime(1976, 7, 4, 13)
-@test parse(ZonedDateTime, "13h Etc/GMT+3", default=default).timezone.offset.utc == Dates.Second(-10800)
+@test parse(ZonedDateTime, "13h Etc/GMT+3", default=default, timezone_infos=timezone_infos).timezone.offset.utc == Dates.Second(-10800)
 @test parse(ZonedDateTime, "13h +03:00", default=default).timezone.offset.utc == Dates.Second(10800)
 @test parse(ZonedDateTime, "13h -0300", default=default).timezone.offset.utc == Dates.Second(-10800)
 @test parse(ZonedDateTime, "13h +03", default=default).timezone.offset.utc == Dates.Second(10800)
 @test parse(ZonedDateTime, "13h -3", default=default).timezone.offset.utc == Dates.Second(-10800)
-@test parse(ZonedDateTime, "13h -0 (GMT)", default=default).timezone.offset.utc == Dates.Second(0)
+@test parse(ZonedDateTime, "13h -0 (GMT)", default=default, timezone_infos=timezone_infos).timezone.offset.utc == Dates.Second(0)
 @test isnull(tryparse(ZonedDateTime, "13h +"))
 @test parse(DateTime, "february the 3rd 1999", default=default) == DateTime(1999, 2, 3)
 @test isnull(tryparse(ZonedDateTime, "hi it's 99 february the 3rd", default=default))
@@ -78,10 +84,9 @@ default = ZonedDateTime(DateTime(1976, 7, 4), timezone)
 @test parse(DateTime, "13s", default=default) == DateTime(1976, 7, 4, 0, 0, 13, 0)
 @test parse(DateTime, "0.5s", default=default) == DateTime(1976, 7, 4, 0, 0, 0, 500)
 @test parse(ZonedDateTime, "1999", default=default).timezone == default.timezone
-timezone_infos = Dict{AbstractString, TimeZone}("TEST" => FixedTimeZone("TEST", 3600))
 @test parse(ZonedDateTime, "1999 2:30 TEST", timezone_infos=timezone_infos, default=default).timezone == timezone_infos["TEST"]
 @test parse(ZonedDateTime, "1999 2:30 WET", default=default).timezone.name == :WET
-@test parse(ZonedDateTime, "1999 2:30 Z", default=default).timezone == TimeZone("UTC")
+@test parse(ZonedDateTime, "1999 2:30 Z", default=default).timezone == FixedTimeZone("UTC", 0)
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 FAIL", default=default))
 @test parse(ZonedDateTime, "1999 2:30 +01:00", default=default).timezone.name == :local
 @test parse(ZonedDateTime, "1999 2:30 +01:00", default=default).timezone.offset.utc == Dates.Second(3600)
@@ -89,16 +94,16 @@ timezone_infos = Dict{AbstractString, TimeZone}("TEST" => FixedTimeZone("TEST", 
 @test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", default=default).timezone.offset.utc == Dates.Second(-3600)
 @test parse(ZonedDateTime, "1999 2:30 America/Winnipeg", default=default).timezone.name == symbol("America/Winnipeg")
 
-@test parse(DateTime, "21:38, 30 May 2006 (UTC)", default=default) == DateTime(2006, 5, 30, 21, 38)
+@test parse(DateTime, "21:38, 30 May 2006 (UTC)", default=default, timezone_infos=timezone_infos) == DateTime(2006, 5, 30, 21, 38)
 
 @test parse(DateTime, "2015.10.02 10:21:59.45", default=default) == DateTime(2015, 10, 2, 10, 21, 59, 450)
 
 # Test tryparse
-@test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), TimeZone("UTC"))
+@test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default, timezone_infos=timezone_infos)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
 @test isnull(tryparse(ZonedDateTime, "garbage"))
-@test get(tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default)) == DateTime(1994, 10, 13, 12, 10, 14)
+@test get(tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default, timezone_infos=timezone_infos)) == DateTime(1994, 10, 13, 12, 10, 14)
 @test isnull(tryparse(DateTime, "garbage"))
-@test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default)) == Date(1994, 10, 13)
+@test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default, timezone_infos=timezone_infos)) == Date(1994, 10, 13)
 @test isnull(tryparse(Date, "garbage"))
 
 

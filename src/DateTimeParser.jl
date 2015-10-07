@@ -2,7 +2,10 @@ module DateTimeParser
 
 using Base.Dates
 using TimeZones
+
 import Base.Dates: VALUETODAYOFWEEK, VALUETODAYOFWEEKABBR, VALUETOMONTH, VALUETOMONTHABBR
+import TimeZones: localtime
+
 export parse, tryparse
 
 
@@ -15,8 +18,8 @@ function Base.tryparse{T<:TimeType}(::Type{T}, str::AbstractString; args...)
 end
 
 Base.parse(::Type{ZonedDateTime}, str::AbstractString; args...) = parsedate(str; args...)
-Base.parse(::Type{DateTime}, str::AbstractString; args...) = DateTime(parsedate(str; args...))
-Base.parse(::Type{Date}, str::AbstractString; args...) = Date(DateTime(parsedate(str; args...)))
+Base.parse(::Type{DateTime}, str::AbstractString; args...) = localtime(parsedate(str; args...))
+Base.parse(::Type{Date}, str::AbstractString; args...) = Date(localtime(parsedate(str; args...)))
 
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
 # https://labix.org/python-dateutil#head-a23e8ae0a661d77b89dfb3476f85b26f0b30349c
@@ -44,7 +47,7 @@ const PERTAIN = ("of",)
 const UTCZONE = ("utc", "gmt", "z",)
 
 function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
-    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), TimeZone("UTC")),
+    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), FixedTimeZone("UTC", 0)),
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
@@ -479,7 +482,7 @@ function trytimezone(tzname::AbstractString;
     elseif tzname in TimeZones.timezone_names()
         return Nullable{TimeZone}(TimeZone(tzname))
     elseif lowercase(tzname) in UTCZONE
-        return Nullable{TimeZone}(TimeZone("utc"))
+        return Nullable{TimeZone}(FixedTimeZone("UTC", 0))
     else
         return Nullable{TimeZone}()
     end
