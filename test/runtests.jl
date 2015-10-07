@@ -26,6 +26,8 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test parse(DateTime, "19990203235945", default=default_dt) == DateTime(1999, 2, 3, 23, 59, 45)
 @test parse(DateTime, "12h30", default=default_dt) == DateTime(1976, 7, 4, 12, 30)
 @test parse(DateTime, "12h30s", default=default_dt) == DateTime(1976, 7, 4, 12, 0, 30)
+@test parse(DateTime, "12m30", default=default_dt) == DateTime(1976, 7, 4, 0, 12, 30)
+@test parse(DateTime, "30s5m12h", default=default_dt) == DateTime(1976, 7, 4, 12, 5, 30)
 @test parse(DateTime, "12.5h", default=default_dt) == DateTime(1976, 7, 4, 12, 30)
 @test parse(DateTime, "12.5m", default=default_dt) == DateTime(1976, 7, 4, 0, 12, 30)
 @test parse(DateTime, "12.5s", default=default_dt) == DateTime(1976, 7, 4, 0, 0, 12, 500)
@@ -36,6 +38,7 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test parse(DateTime, "3.FEB.99", default=default_dt) == DateTime(1999, 2, 3)
 @test parse(DateTime, "2/3/1999", default=default_dt) == DateTime(1999, 2, 3)
 @test parse(DateTime, "1999/FEB/3", default=default_dt) == DateTime(1999, 2, 3)
+@test parse(DateTime, "1999/3/FEB", default=default_dt) == DateTime(1999, 2, 3)
 @test parse(DateTime, "12 am", default=default_dt) == DateTime(1976, 7, 4, 0)
 @test parse(DateTime, "1 pm", default=default_dt) == DateTime(1976, 7, 4, 13)
 @test parse(DateTime, "12am", default=default_dt) == DateTime(1976, 7, 4, 0)
@@ -55,6 +58,7 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test parse(ZonedDateTime, "13h +03", default=default_zdt).timezone.offset.utc == Dates.Second(10800)
 @test parse(ZonedDateTime, "13h -3", default=default_zdt).timezone.offset.utc == Dates.Second(-10800)
 @test parse(ZonedDateTime, "13h -0 (GMT)", default=default_zdt, timezone_infos=timezone_infos).timezone.offset.utc == Dates.Second(0)
+@test isnull(tryparse(ZonedDateTime, "13h +12345", default=default_zdt))
 @test isnull(tryparse(ZonedDateTime, "13h +", default=default_zdt))
 @test parse(DateTime, "february the 3rd 1999", default=default_dt) == DateTime(1999, 2, 3)
 @test isnull(tryparse(DateTime, "hi it's 99 february the 3rd", default=default_dt))
@@ -98,6 +102,10 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", default=default_zdt).timezone.offset.utc == Dates.Second(-3600)
 @test parse(ZonedDateTime, "1999 2:30 America/Winnipeg", default=default_zdt).timezone.name == symbol("America/Winnipeg")
 
+@test parse(ZonedDateTime, "1999 2:30 (America/Winnipeg)", default=default_zdt).timezone.name == symbol("America/Winnipeg")
+@test isnull(tryparse(ZonedDateTime, "1999 2:30 (BAD-)", default=default_zdt))
+@test parse(ZonedDateTime, "1999 2:30 (BAD-)", fuzzy=true, default=default_zdt).timezone.name == symbol("Europe/Warsaw")
+
 @test parse(DateTime, "21:38, 30 May 2006 (UTC)", default=default_dt, timezone_infos=timezone_infos) == DateTime(2006, 5, 30, 21, 38)
 
 @test parse(DateTime, "2015.10.02 10:21:59.45", default=default_dt) == DateTime(2015, 10, 2, 10, 21, 59, 450)
@@ -110,6 +118,8 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default_d, timezone_infos=timezone_infos)) == Date(1994, 10, 13)
 @test isnull(tryparse(Date, "garbage", default=default_d))
 
+# Test convertyear
+@test DateTimeParser.convertyear(10, 2075) == 2110
 
 # Examples I found in Python's dateutil's pointers links
 date = ZonedDateTime(DateTime(1995, 2, 4), timezone)
