@@ -15,6 +15,8 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 
 # Test all code paths
 @test parse(ZonedDateTime, "", default=default) == default
+@test parse(DateTime, "", default=default) == DateTime(1976, 7, 4)
+@test parse(Date, "", default=default) == Date(1976, 7, 4)
 @test parse(DateTime, "19990203T2359", default=default) == DateTime(1999, 2, 3, 23, 59)
 @test parse(DateTime, "990203", default=default) == DateTime(1999, 2, 3)
 @test parse(DateTime, "990203T235945.54", default=default) == DateTime(1999, 2, 3, 23, 59, 45, 540)

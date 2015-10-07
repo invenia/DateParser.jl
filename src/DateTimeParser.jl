@@ -8,19 +8,6 @@ import TimeZones: localtime
 
 export parse, tryparse
 
-
-function Base.tryparse{T<:TimeType}(::Type{T}, str::AbstractString; args...)
-    try
-        return Nullable{T}(parse(T, str; args...))
-    catch
-        return Nullable{T}()
-    end
-end
-
-Base.parse(::Type{ZonedDateTime}, str::AbstractString; args...) = parsedate(str; args...)
-Base.parse(::Type{DateTime}, str::AbstractString; args...) = localtime(parsedate(str; args...))
-Base.parse(::Type{Date}, str::AbstractString; args...) = Date(localtime(parsedate(str; args...)))
-
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
 # https://labix.org/python-dateutil#head-a23e8ae0a661d77b89dfb3476f85b26f0b30349c
 
@@ -46,7 +33,15 @@ const JUMP = (
 const PERTAIN = ("of",)
 const UTCZONE = ("utc", "gmt", "z",)
 
-function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
+function Base.tryparse{T<:TimeType}(::Type{T}, str::AbstractString; args...)
+    try
+        return Nullable{T}(parse(T, str; args...))
+    catch
+        return Nullable{T}()
+    end
+end
+
+function Base.parse(::Type{ZonedDateTime}, datetimestring::AbstractString; fuzzy::Bool=false,
     default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), FixedTimeZone("UTC", 0)),
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
@@ -81,6 +76,59 @@ function parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
 
     return ZonedDateTime(DateTime(res["year"], res["month"], res["day"], res["hour"],
             res["minute"], res["second"], res["millisecond"]), res["timezone"])
+end
+
+function Base.parse(::Type{DateTime}, datetimestring::AbstractString; fuzzy::Bool=false,
+    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), FixedTimeZone("UTC", 0)),
+    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
+    dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
+    yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
+    locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
+)
+    datetimestring = strip(datetimestring)
+
+    if isempty(datetimestring)
+        return localtime(default)
+    end
+
+    res = _parsedate(datetimestring, fuzzy=fuzzy, timezone_infos=timezone_infos,
+        dayfirst=dayfirst, yearfirst=yearfirst, locale=locale)
+
+    # Fill in default values if none exits
+    res["year"] = convertyear(get(res, "year", year(default)))
+    get!(res, "month", month(default))
+    get!(res, "day", day(default))
+    get!(res, "hour", hour(default))
+    get!(res, "minute", minute(default))
+    get!(res, "second", second(default))
+    get!(res, "millisecond", millisecond(default))
+
+    return DateTime(res["year"], res["month"], res["day"], res["hour"],
+            res["minute"], res["second"], res["millisecond"])
+end
+
+function Base.parse(::Type{Date}, datetimestring::AbstractString; fuzzy::Bool=false,
+    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), FixedTimeZone("UTC", 0)),
+    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
+    dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
+    yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
+    locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
+)
+    datetimestring = strip(datetimestring)
+
+    if isempty(datetimestring)
+        return Date(localtime(default))
+    end
+
+    res = _parsedate(datetimestring, fuzzy=fuzzy, timezone_infos=timezone_infos,
+        dayfirst=dayfirst, yearfirst=yearfirst, locale=locale)
+
+    # Fill in default values if none exits
+    res["year"] = convertyear(get(res, "year", year(default)))
+    get!(res, "month", month(default))
+    get!(res, "day", day(default))
+
+    return Date(res["year"], res["month"], res["day"])
 end
 
 function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
