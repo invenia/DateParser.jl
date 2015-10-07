@@ -277,7 +277,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         i += 1
                         if haskey(month, lowercase(tokens[i]))
                             push!(ymd, month[lowercase(tokens[i])])
-                            mstridx = len(ymd)
+                            mstridx = length(ymd)
                         else
                             push!(ymd, parse(Int, tokens[i]))
                         end
