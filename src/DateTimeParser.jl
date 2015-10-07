@@ -79,7 +79,7 @@ function Base.parse(::Type{ZonedDateTime}, datetimestring::AbstractString; fuzzy
 end
 
 function Base.parse(::Type{DateTime}, datetimestring::AbstractString; fuzzy::Bool=false,
-    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), FixedTimeZone("UTC", 0)),
+    default::DateTime=DateTime(year(today())),
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
@@ -88,7 +88,7 @@ function Base.parse(::Type{DateTime}, datetimestring::AbstractString; fuzzy::Boo
     datetimestring = strip(datetimestring)
 
     if isempty(datetimestring)
-        return localtime(default)
+        return default
     end
 
     res = _parsedate(datetimestring, fuzzy=fuzzy, timezone_infos=timezone_infos,
@@ -108,7 +108,7 @@ function Base.parse(::Type{DateTime}, datetimestring::AbstractString; fuzzy::Boo
 end
 
 function Base.parse(::Type{Date}, datetimestring::AbstractString; fuzzy::Bool=false,
-    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), FixedTimeZone("UTC", 0)),
+    default::Date=Date(year(today())),
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
@@ -117,7 +117,7 @@ function Base.parse(::Type{Date}, datetimestring::AbstractString; fuzzy::Bool=fa
     datetimestring = strip(datetimestring)
 
     if isempty(datetimestring)
-        return Date(localtime(default))
+        return default
     end
 
     res = _parsedate(datetimestring, fuzzy=fuzzy, timezone_infos=timezone_infos,
