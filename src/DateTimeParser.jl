@@ -189,10 +189,8 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     end
                 end
             elseif (i <= len && haskey(HMS, lowercase(tokens[i]))) ||
-                    (i+1 <= len && tokens[i] == " " && haskey(HMS, lowercase(tokens[i+1]))) ||
-                    ((i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])) &&
-                    ((i+2 <= len && haskey(HMS, lowercase(tokens[i+2])))||
-                    (i+3 <= len && tokens[i+2] == " " && haskey(HMS, lowercase(tokens[i+3])))))
+                    (i+2 <= len && tokens[i] == "." && isdigit(tokens[i+1]) &&
+                    haskey(HMS, lowercase(tokens[i+2])))
                 # HH[ ]h or MM[ ]m or SS[.ss][ ]s
 
                 value = parse(Int, token)
@@ -200,9 +198,6 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 if tokens[i] == "."
                     decimal = parse(Float64, string(".", tokens[i+1]))
                     i += 2
-                end
-                if tokens[i] == " "
-                    i += 1
                 end
                 idx = HMS[lowercase(tokens[i])]
                 while true
@@ -231,13 +226,13 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if !isdigit(token)
                         break
                     else
+                        i += 1
                         value = parse(Int, token)
                         decimal = 0.0
-                        if tokens[i] == "." && i+1 <= len && isdigit(tokens[i+1])
+                        if i+1 <= len tokens[i] == "." && isdigit(tokens[i+1])
                             decimal = parse(Float64, string(".", tokens[i+1]))
                             i += 2
                         end
-                        i += 1
                         if i <= len && haskey(HMS, lowercase(tokens[i]))
                             idx = HMS[lowercase(tokens[i])]
                         elseif idx == :hour
@@ -289,11 +284,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         i += 1
                     end
                 end
-            elseif i <= len && haskey(AMPM, lowercase(tokens[i])) ||
-                i+1 <= len && tokens[i] == " " && haskey(AMPM, lowercase(tokens[i+1]))
-                if tokens[i] == " "
-                    i += 1
-                end
+            elseif i <= len && haskey(AMPM, lowercase(tokens[i]))
                 # 12am
                 res["hour"] = parse(Int, token)
                 res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
@@ -325,14 +316,13 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                             push!(ymd, parse(Int, tokens[i]))
                             i += 1
                         end
-                    elseif i+3 <= len && tokens[i] == tokens[i+2] == " " &&
-                            tokens[i+1] in PERTAIN && isdigit(tokens[i+3])
+                    elseif i+1 <= len && tokens[i] in PERTAIN && isdigit(tokens[i+1])
                         # Jan of 01
                         # In this case, 01 is clearly year
-                        value = parse(Int, tokens[i+3])
+                        value = parse(Int, tokens[i+1])
                         # Convert it here to become unambiguous
                         push!(ymd, convertyear(value))
-                        i += 4
+                        i += 2
                     end
                 end
             elseif haskey(AMPM, lowercase(tokens[i]))
@@ -565,20 +555,13 @@ end
 
 function _parsedatetokens(input::AbstractString)
     tokens = AbstractString[]
-    regex = r"^(\d+|((?=[^\d])\w)+)"
+    regex = r"^(\d+|((?=[^\d])\w)+|.)"
     input = strip(input)
     while !isempty(input)
         if ismatch(regex,input)
             tokenmatch = match(regex, input).match
             push!(tokens, tokenmatch)
-            input = input[tokenmatch.endof+1:end]
-        else
-            if ismatch(r"\s", string(input[1:1]))
-                push!(tokens, " ")
-            else
-                push!(tokens, input[1:1])
-            end
-            input = strip(input[2:end])
+            input = strip(input[tokenmatch.endof+1:end])
         end
     end
     return tokens
