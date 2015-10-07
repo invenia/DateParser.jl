@@ -354,15 +354,15 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 i += 1
                 res["tzoffset"] *= signal
             elseif !haskey(res, "tzname") && i+2 <= len && tokens[i] == "(" &&
-                    tokens[i+2] == ")" && ismatch(r"^\w+$", tokens[i+1])
+                    ismatch(r"^\w+$", tokens[i+1])
                 # Look for a timezone name between parenthesis
                 oldindex = i
                 res["tzname"] = tokens[i+1]
                 i += 2
-                while i <= len && tokens[i] != ")"
+                while tokens[i] != ")"
                     # -0300 (BRST)
-                    if i+2 <= len && tokens[i+1] == "/"
-                        res["tzname"] = string(res["tzname"], "/", tokens[i+2])
+                    if i+2 <= len && tokens[i] == "/"
+                        res["tzname"] = string(res["tzname"], "/", tokens[i+1])
                         i += 2
                     elseif fuzzy == true
                         delete!(res, "tzname")
