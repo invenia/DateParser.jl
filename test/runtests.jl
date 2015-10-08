@@ -106,16 +106,16 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 (BAD-)", default=default_zdt))
 @test parse(ZonedDateTime, "1999 2:30 (BAD-)", fuzzy=true, default=default_zdt).timezone.name == symbol("Europe/Warsaw")
 
-@test parse(DateTime, "21:38, 30 May 2006 (UTC)", default=default_dt, timezone_infos=timezone_infos) == DateTime(2006, 5, 30, 21, 38)
+@test parse(DateTime, "21:38, 30 May 2006 (UTC)", default=default_dt) == DateTime(2006, 5, 30, 21, 38)
 
 @test parse(DateTime, "2015.10.02 10:21:59.45", default=default_dt) == DateTime(2015, 10, 2, 10, 21, 59, 450)
 
 # Test tryparse
 @test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
 @test isnull(tryparse(ZonedDateTime, "garbage", default=default_zdt))
-@test get(tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default_dt, timezone_infos=timezone_infos)) == DateTime(1994, 10, 13, 12, 10, 14)
+@test get(tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default_dt)) == DateTime(1994, 10, 13, 12, 10, 14)
 @test isnull(tryparse(DateTime, "garbage", default=default_dt))
-@test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default_d, timezone_infos=timezone_infos)) == Date(1994, 10, 13)
+@test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default_d)) == Date(1994, 10, 13)
 @test isnull(tryparse(Date, "garbage", default=default_d))
 
 # Test convertyear

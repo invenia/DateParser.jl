@@ -80,7 +80,6 @@ end
 
 function Base.parse(::Type{DateTime}, datetimestring::AbstractString; fuzzy::Bool=false,
     default::DateTime=DateTime(year(today())),
-    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
     locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
@@ -91,7 +90,7 @@ function Base.parse(::Type{DateTime}, datetimestring::AbstractString; fuzzy::Boo
         return default
     end
 
-    res = _parsedate(datetimestring, fuzzy=fuzzy, timezone_infos=timezone_infos,
+    res = _parsedate(datetimestring, fuzzy=fuzzy,
         dayfirst=dayfirst, yearfirst=yearfirst, locale=locale)
 
     # Fill in default values if none exits
@@ -109,7 +108,6 @@ end
 
 function Base.parse(::Type{Date}, datetimestring::AbstractString; fuzzy::Bool=false,
     default::Date=Date(year(today())),
-    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
     locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
@@ -120,7 +118,7 @@ function Base.parse(::Type{Date}, datetimestring::AbstractString; fuzzy::Bool=fa
         return default
     end
 
-    res = _parsedate(datetimestring, fuzzy=fuzzy, timezone_infos=timezone_infos,
+    res = _parsedate(datetimestring, fuzzy=fuzzy,
         dayfirst=dayfirst, yearfirst=yearfirst, locale=locale)
 
     # Fill in default values if none exits
@@ -374,7 +372,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
 
                 if haskey(res, "tzname")
-                    value = trytimezone(res["tzname"], timezone_infos=timezone_infos)
+                    value = trytimezone(res["tzname"], timezone_infos)
                     if !isnull(value)
                         res["timezone"] = get(value)
                     end
@@ -400,7 +398,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     i += 2
                 end
 
-                value = trytimezone(res["tzname"], timezone_infos=timezone_infos)
+                value = trytimezone(res["tzname"], timezone_infos)
                 if !isnull(value)
                     res["timezone"] = get(value)
                 elseif fuzzy == true
@@ -512,9 +510,7 @@ function weekdaytovalue(locale::AbstractString="english")
     return weekdaytovalue
 end
 
-function trytimezone(tzname::AbstractString;
-    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}()
-)
+function trytimezone(tzname::AbstractString, timezone_infos::Dict{AbstractString,TimeZone})
     if haskey(timezone_infos, tzname)
         return Nullable{TimeZone}(timezone_infos[tzname])
     elseif tzname in TimeZones.timezone_names()
