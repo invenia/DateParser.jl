@@ -3,11 +3,9 @@ using Base.Test
 
 using TimeZones
 
-@test DateTimeParser.tokenize("∀A ∃") == ["∀A", "∃"]
-@test DateTimeParser.tokenize("∃2") == ["∃", "2"]
-@test DateTimeParser.tokenize("1996 ") == ["1996"]
-
-
+@test DateTimeParser.tokenize("⁇.éAû2") == ["⁇.", "éAû", "2"]
+@test DateTimeParser.tokenize("1999 Feb 3 12:20:30.5") == ["1999", "Feb", "3", "12", ":", "20", ":", "30", ".", "5"]
+@test DateTimeParser.tokenize("GMT+3") == ["GMT", "+", "3"]  # Note: ispunct('+') is false
 
 timezone = TimeZone("Europe/Warsaw")
 default_d = Date(1976, 7, 4)

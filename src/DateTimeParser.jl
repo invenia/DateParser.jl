@@ -549,17 +549,39 @@ function converthour(hour::Int, ampm::Symbol)
     return hour
 end
 
-function tokenize{S<:AbstractString}(input::S)
-    tokens = S[]
-    regex = r"\s*(\d+|((?!\d)\S)+)"
-    start, finish = 1, sizeof(input)
-    while start <= finish
-        m = match(regex, input, start)
-        m == nothing && break
-        token = m.captures[1]
-        start += sizeof(m.match)
-        push!(tokens, token)
+function tokenize{Str<:AbstractString}(input::Str)
+    tokens = Str[]
+    token = sizehint!(Char[], 10)
+
+    # Note: A regular expression can handle almost all of this task
+    # with the exception of identifying Unicode punctuation.
+    state = last_state = :none
+    for c in input
+        if isspace(c)
+            state = :none
+        elseif isdigit(c)
+            state = :number
+        elseif isalpha(c)
+            state = :word
+        else
+            state = :other
+        end
+
+        if state != :none
+            if state != last_state && !isempty(token)
+                push!(tokens, Str(token))
+                empty!(token)
+            end
+
+            push!(token, c)
+        end
+
+        last_state = state
     end
+
+    # Token will only be empty here if the entire input was whitespace
+    !isempty(token) && push!(tokens, Str(token))
+
     return tokens
 end
 
