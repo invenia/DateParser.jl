@@ -3,6 +3,11 @@ using Base.Test
 
 using TimeZones
 
+@test DateTimeParser.tokenize("∀A ∃") == ["∀A", "∃"]
+@test DateTimeParser.tokenize("∃2") == ["∃", "2"]
+@test DateTimeParser.tokenize("1996 ") == ["1996"]
+
+
 
 timezone = TimeZone("Europe/Warsaw")
 default_d = Date(1976, 7, 4)

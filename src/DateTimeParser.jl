@@ -140,7 +140,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
 
     ymd = sizehint!(Int[], 3)  # year/month/day list
     mstridx = -1  # Index of the month string in ymd
-    tokens = _parsedatetokens(datetimestring)
+    tokens = tokenize(datetimestring)
     len = length(tokens)
 
     res = Dict()
@@ -549,16 +549,16 @@ function converthour(hour::Int, ampm::Symbol)
     return hour
 end
 
-function _parsedatetokens(input::AbstractString)
-    tokens = AbstractString[]
-    regex = r"^(\d+|((?=[^\d])\w)+|.)"
-    input = strip(input)
-    while !isempty(input)
-        if ismatch(regex,input)
-            tokenmatch = match(regex, input).match
-            push!(tokens, tokenmatch)
-            input = strip(input[tokenmatch.endof+1:end])
-        end
+function tokenize{S<:AbstractString}(input::S)
+    tokens = S[]
+    regex = r"\s*(\d+|((?!\d)\S)+)"
+    start, finish = 1, sizeof(input)
+    while start <= finish
+        m = match(regex, input, start)
+        m == nothing && break
+        token = m.captures[1]
+        start += sizeof(m.match)
+        push!(tokens, token)
     end
     return tokens
 end
