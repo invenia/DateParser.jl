@@ -17,6 +17,8 @@ export parse, tryparse
 # http://new-pds-rings-2.seti.org/tools/time_formats.html
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
+abstract DayOfWeek
+
 const HMS = Dict{AbstractString, Symbol}(
     "h" => :hour, "hour" => :hour, "hours" => :hour,
     "m" => :minute, "minute" => :minute, "minutes" => :minute,
@@ -32,6 +34,15 @@ const JUMP = (
 )
 const PERTAIN = ("of",)
 const UTCZONE = ("utc", "gmt", "z",)
+
+# Name to value translations
+for name in ("DAYOFWEEK", "DAYOFWEEKABBR", "MONTH", "MONTHABBR")
+    valueto = symbol("VALUETO" * name)
+    tovalue = symbol(name * "TOVALUE")
+    @eval begin
+        const $tovalue = [locale => Dict(zip(values(d), keys(d))) for (locale, d) in $valueto]
+    end
+end
 
 function Base.tryparse{T<:TimeType}(::Type{T}, str::AbstractString; args...)
     try
@@ -264,8 +275,9 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if isdigit(tokens[i])
                         push!(ymd, parse(Int, tokens[i]))
                     else
-                        if haskey(month, lowercase(tokens[i]))
-                            push!(ymd, month[lowercase(tokens[i])])
+                        month = tryparseint(Month, tokens[i])
+                        if !isnull(month)
+                            push!(ymd, get(month))
                             mstridx = length(ymd)
                         end
                     end
@@ -273,8 +285,9 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if i <= len && tokens[i] == sep
                         # We have three members
                         i += 1
-                        if haskey(month, lowercase(tokens[i]))
-                            push!(ymd, month[lowercase(tokens[i])])
+                        month = tryparseint(Month, tokens[i])
+                        if !isnull(month)
+                            push!(ymd, get(month))
                             mstridx = length(ymd)
                         else
                             push!(ymd, parse(Int, tokens[i]))
@@ -488,31 +501,19 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     return res
 end
 
-function monthtovalue(locale::AbstractString="english")
-    monthtovalue = Dict{UTF8String, Int}()
-    for (value, name) in VALUETOMONTH[locale]
-        monthtovalue[lowercase(name)] = value
-    end
-    for (value, name) in VALUETOMONTHABBR[locale]
-        monthtovalue[lowercase(name)] = value
-    end
-    return monthtovalue
+function tryparseint(::Type{Month}, s::AbstractString; locale::AbstractString="english")
+    name = lowercase(name)
+    Nullable{Int}(get(MONTHTOVALUE[locale], name, get(MONTHABBRTOVALUE[locale], name, nothing)))
 end
 
-function weekdaytovalue(locale::AbstractString="english")
-    weekdaytovalue = Dict{UTF8String, Int}()
-    for (value, name) in VALUETODAYOFWEEK[locale]
-        weekdaytovalue[lowercase(name)] = value
-    end
-    for (value, name) in VALUETODAYOFWEEKABBR[locale]
-        weekdaytovalue[lowercase(name)] = value
-    end
-    return weekdaytovalue
+function tryparseint(::Type{DayOfWeek}, s::AbstractString; locale::AbstractString="english")
+    name = lowercase(name)
+    Nullable{Int}(get(DAYOFWEEKTOVALUE[locale], name, get(DAYOFWEEKABBRTOVALUE[locale], name, nothing)))
 end
 
-function trytimezone(tzname::AbstractString, timezone_infos::Dict{AbstractString,TimeZone})
-    if haskey(timezone_infos, tzname)
-        return Nullable{TimeZone}(timezone_infos[tzname])
+function tryparse(::Type{TimeZone}, name::AbstractString; translation::Dict{AbstractString,TimeZone})
+    if haskey(translation, name)
+        return Nullable{TimeZone}(translation[name])
     elseif tzname in TimeZones.timezone_names()
         return Nullable{TimeZone}(TimeZone(tzname))
     elseif lowercase(tzname) in UTCZONE
