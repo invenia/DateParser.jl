@@ -54,21 +54,14 @@ function Base.parse(::Type{ZonedDateTime}, datetimestring::AbstractString;
     res = _parsedate(datetimestring; args...)
 
     # Fill in default values if none exits
-    res["year"] = convertyear(get(res, "year", year(default)))
+    get!(res, "year", year(default))
     get!(res, "month", month(default))
     get!(res, "day", day(default))
     get!(res, "hour", hour(default))
     get!(res, "minute", minute(default))
     get!(res, "second", second(default))
     get!(res, "millisecond", millisecond(default))
-    if !haskey(res, "timezone")
-        if haskey(res, "tzoffset")
-            tzname = get(res, "tzname", "local")
-            res["timezone"] = FixedTimeZone(tzname, res["tzoffset"])
-        else
-            res["timezone"] = default.timezone
-        end
-    end
+    get!(res, "timezone", default.timezone)
 
     return ZonedDateTime(DateTime(res["year"], res["month"], res["day"], res["hour"],
             res["minute"], res["second"], res["millisecond"]), res["timezone"])
@@ -86,7 +79,7 @@ function Base.parse(::Type{DateTime}, datetimestring::AbstractString;
     res = _parsedate(datetimestring; args...)
 
     # Fill in default values if none exits
-    res["year"] = convertyear(get(res, "year", year(default)))
+    get!(res, "year", year(default))
     get!(res, "month", month(default))
     get!(res, "day", day(default))
     get!(res, "hour", hour(default))
@@ -110,7 +103,7 @@ function Base.parse(::Type{Date}, datetimestring::AbstractString;
     res = _parsedate(datetimestring; args...)
 
     # Fill in default values if none exits
-    res["year"] = convertyear(get(res, "year", year(default)))
+    get!(res, "year", year(default))
     get!(res, "month", month(default))
     get!(res, "day", day(default))
 
@@ -405,6 +398,11 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
 
     processymd!(res, ymd, mstridx, yearfirst=yearfirst, dayfirst=dayfirst)
 
+    if !haskey(res, "timezone") && haskey(res, "tzoffset")
+        tzname = get(res, "tzname", "local")
+        res["timezone"] = FixedTimeZone(tzname, res["tzoffset"])
+    end
+
     return res
 end
 
@@ -477,6 +475,9 @@ function processymd!(res::Dict, ymd::Array, mstridx=-1; yearfirst=false, dayfirs
                 res["month"], res["day"], res["year"] = ymd
             end
         end
+    end
+    if haskey(res, "year")
+        res["year"] = convertyear(res["year"])
     end
 end
 
