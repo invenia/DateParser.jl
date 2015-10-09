@@ -415,6 +415,12 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         end
     end
 
+    processymd!(res, ymd, mstridx, yearfirst=yearfirst, dayfirst=dayfirst)
+
+    return res
+end
+
+function processymd!(res::Dict, ymd::Array, mstridx=-1; yearfirst=false, dayfirst=false)
     # Process year/month/day
     len_ymd = length(ymd)
 
@@ -484,8 +490,6 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
             end
         end
     end
-
-    return res
 end
 
 function monthtovalue(locale::AbstractString="english")
