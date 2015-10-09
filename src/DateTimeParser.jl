@@ -40,7 +40,7 @@ for name in ("DAYOFWEEK", "DAYOFWEEKABBR", "MONTH", "MONTHABBR")
     valueto = symbol("VALUETO" * name)
     tovalue = symbol(name * "TOVALUE")
     @eval begin
-        const $tovalue = [locale => Dict(zip(values(d), keys(d))) for (locale, d) in $valueto]
+        const $tovalue = [locale => Dict(zip(map(lowercase, values(d)), keys(d))) for (locale, d) in $valueto]
     end
 end
 
@@ -146,9 +146,6 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     yearfirst::Bool=false,
     locale::AbstractString="english",
 )
-    month = monthtovalue(locale)
-    weekday = weekdaytovalue(locale)
-
     ymd = sizehint!(Int[], 3)  # year/month/day list
     mstridx = -1  # Index of the month string in ymd
     tokens = tokenize(datetimestring)
@@ -275,7 +272,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if isdigit(tokens[i])
                         push!(ymd, parse(Int, tokens[i]))
                     else
-                        month = tryparseint(Month, tokens[i])
+                        month = _tryparse(Month, tokens[i])
                         if !isnull(month)
                             push!(ymd, get(month))
                             mstridx = length(ymd)
@@ -285,7 +282,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if i <= len && tokens[i] == sep
                         # We have three members
                         i += 1
-                        month = tryparseint(Month, tokens[i])
+                        month = _tryparse(Month, tokens[i])
                         if !isnull(month)
                             push!(ymd, get(month))
                             mstridx = length(ymd)
@@ -305,13 +302,15 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
             end
         else
             # Token is not a number
-            if haskey(weekday, lowercase(token))
+            weekday = _tryparse(DayOfWeek, lowercase(token))
+            month = _tryparse(Month, lowercase(token))
+            if !isnull(weekday)
                 # Weekday
-                res["weekday"] = weekday[lowercase(token)]
+                res["weekday"] = get(weekday)
                 i += 1
-            elseif haskey(month, lowercase(token))
+            elseif !isnull(month)
                 # Month name
-                push!(ymd, round(Int, month[lowercase(token)]))
+                push!(ymd, round(Int, get(month)))
                 mstridx = length(ymd)
                 i += 1
                 if i <= len
@@ -385,7 +384,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
 
                 if haskey(res, "tzname")
-                    value = trytimezone(res["tzname"], timezone_infos)
+                    value = _tryparse(TimeZone, res["tzname"], translation=timezone_infos)
                     if !isnull(value)
                         res["timezone"] = get(value)
                     end
@@ -411,7 +410,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     i += 2
                 end
 
-                value = trytimezone(res["tzname"], timezone_infos)
+                value = _tryparse(TimeZone, res["tzname"], translation=timezone_infos)
                 if !isnull(value)
                     res["timezone"] = get(value)
                 elseif fuzzy == true
@@ -501,22 +500,24 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     return res
 end
 
-function tryparseint(::Type{Month}, s::AbstractString; locale::AbstractString="english")
-    name = lowercase(name)
+function _tryparse(::Type{Month}, s::AbstractString; locale::AbstractString="english")
+    name = lowercase(s)
     Nullable{Int}(get(MONTHTOVALUE[locale], name, get(MONTHABBRTOVALUE[locale], name, nothing)))
 end
 
-function tryparseint(::Type{DayOfWeek}, s::AbstractString; locale::AbstractString="english")
-    name = lowercase(name)
+function _tryparse(::Type{DayOfWeek}, s::AbstractString; locale::AbstractString="english")
+    name = lowercase(s)
     Nullable{Int}(get(DAYOFWEEKTOVALUE[locale], name, get(DAYOFWEEKABBRTOVALUE[locale], name, nothing)))
 end
 
-function tryparse(::Type{TimeZone}, name::AbstractString; translation::Dict{AbstractString,TimeZone})
+function _tryparse(::Type{TimeZone}, name::AbstractString;
+    translation::Dict{AbstractString,TimeZone}=Dict{AbstractString,TimeZone}()
+)
     if haskey(translation, name)
         return Nullable{TimeZone}(translation[name])
-    elseif tzname in TimeZones.timezone_names()
-        return Nullable{TimeZone}(TimeZone(tzname))
-    elseif lowercase(tzname) in UTCZONE
+    elseif name in TimeZones.timezone_names()
+        return Nullable{TimeZone}(TimeZone(name))
+    elseif lowercase(name) in UTCZONE
         return Nullable{TimeZone}(FixedTimeZone("UTC", 0))
     else
         return Nullable{TimeZone}()
