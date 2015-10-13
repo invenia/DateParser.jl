@@ -17,7 +17,10 @@ export parse, tryparse
 # http://new-pds-rings-2.seti.org/tools/time_formats.html
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
-abstract DayOfWeek
+immutable DayOfWeek <: DatePeriod
+    value::Int64
+    DayOfWeek(v::Number) = new(v)
+end
 
 const HMS = Dict{AbstractString, Symbol}(
     "h" => :hour, "hour" => :hour, "hours" => :hour,
@@ -127,7 +130,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
     locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
 )
-    res = Dict()
+    res = Dict{AbstractString, Union{Period,TimeZone}}()
 
     ymd = sizehint!(Int[], 3)  # year/month/day list
     mstridx = -1  # Index of the month string in ymd
@@ -300,7 +303,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 i += 1
             elseif !isnull(month)
                 # Month name
-                push!(ymd, round(Int, get(month)))
+                push!(ymd, get(month))
                 mstridx = length(ymd)
                 i += 1
                 if i <= len
@@ -522,12 +525,22 @@ end
 
 function _tryparse(::Type{Month}, s::AbstractString; locale::AbstractString="english")
     name = lowercase(s)
-    Nullable{Int}(get(MONTHTOVALUE[locale], name, get(MONTHABBRTOVALUE[locale], name, nothing)))
+    temp = Nullable{Int}(get(MONTHTOVALUE[locale], name, get(MONTHABBRTOVALUE[locale], name, nothing)))
+    if isnull(temp)
+        Nullable{Month}()
+    else
+        Nullable{Month}(Month(get(temp)))
+    end
 end
 
 function _tryparse(::Type{DayOfWeek}, s::AbstractString; locale::AbstractString="english")
     name = lowercase(s)
-    Nullable{Int}(get(DAYOFWEEKTOVALUE[locale], name, get(DAYOFWEEKABBRTOVALUE[locale], name, nothing)))
+    temp = Nullable{Int}(get(DAYOFWEEKTOVALUE[locale], name, get(DAYOFWEEKABBRTOVALUE[locale], name, nothing)))
+    if isnull(temp)
+        Nullable{DayOfWeek}()
+    else
+        Nullable{DayOfWeek}(DayOfWeek(get(temp)))
+    end
 end
 
 function _tryparse(::Type{TimeZone}, name::AbstractString;
