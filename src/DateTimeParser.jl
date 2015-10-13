@@ -77,8 +77,7 @@ function Base.parse(::Type{ZonedDateTime}, datetimestring::AbstractString;
     get!(res, "millisecond", Millisecond(default))
     get!(res, "timezone", default.timezone)
 
-    return ZonedDateTime(DateTime(res["year"], res["month"], res["day"], res["hour"],
-            res["minute"], res["second"], res["millisecond"]), res["timezone"])
+    return ZonedDateTime(values(res)...)
 end
 
 function Base.parse(::Type{DateTime}, datetimestring::AbstractString;
@@ -101,8 +100,8 @@ function Base.parse(::Type{DateTime}, datetimestring::AbstractString;
     get!(res, "second", Second(default))
     get!(res, "millisecond", Millisecond(default))
 
-    return DateTime(res["year"], res["month"], res["day"], res["hour"],
-            res["minute"], res["second"], res["millisecond"])
+    delete!(res, "timezone")
+    return DateTime(values(res)...)
 end
 
 function Base.parse(::Type{Date}, datetimestring::AbstractString;
@@ -121,7 +120,8 @@ function Base.parse(::Type{Date}, datetimestring::AbstractString;
     get!(res, "month", Month(default))
     get!(res, "day", Day(default))
 
-    return Date(res["year"], res["month"], res["day"])
+    delete!(res, "timezone")
+    return Date(values(res)...)
 end
 
 function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
