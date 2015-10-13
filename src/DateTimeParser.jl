@@ -135,7 +135,6 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     ymd = sizehint!(Int[], 3)  # year/month/day list
     mstridx = -1  # Index of the month string in ymd
 
-    weekday = -1
     tzoffset = Nullable{Int}()
 
     tokens = tokenize(datetimestring)
