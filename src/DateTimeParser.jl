@@ -136,7 +136,6 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     mstridx = -1  # Index of the month string in ymd
 
     weekday = -1
-    tzname = ""
     tzoffset = Nullable{Int}()
 
     tokens = tokenize(datetimestring)
@@ -354,64 +353,16 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
                 tzoffset = Nullable{Int}(signal * (hour * 3600 + minute * 60))
                 i += 1
-            elseif isempty(tzname) && i+2 <= len && tokens[i] == "(" &&
-                    ismatch(r"^\w+$", tokens[i+1])
-                # Look for a timezone name between parenthesis
-                oldindex = i
-                tzname = tokens[i+1]
-                i += 2
-                while tokens[i] != ")"
-                    # -0300 (BRST)
-                    if i+2 <= len && tokens[i] == "/"
-                        tzname = string(tzname, "/", tokens[i+1])
-                        i += 2
-                    elseif fuzzy == true
-                        tzname = ""
-                        i = oldindex
-                        break
-                    else
-                        error("Faild to parse date")
-                    end
-                end
-                if !isempty(tzname)
-                    value = _tryparse(TimeZone, tzname, translation=timezone_infos)
-                    if !isnull(value)
-                        res["timezone"] = get(value)
-                    end
-                end
-
-                i += 1
-            elseif isempty(tzname) && ismatch(r"^\w+$", tokens[i]) &&
-                    !(lowercase(tokens[i]) in JUMP)
-                # Timezone name?
-                oldindex = i
-
-                tzname = tokens[i]
-                while i+2 <= len && tokens[i+1] == "/"
-                    tzname = string(tzname, "/", tokens[i+2])
-                    i += 2
-                end
-                i += 1
-                # Check for something like GMT+3, or BRST+3
-                if i+1 <= len && tokens[i] in ("+", "-") &&
-                        isdigit(tokens[i+1]) && length(tokens[i+1]) in (1,2) &&
-                        (i+2 > len || tokens[i+2] != ":")
-                    tzname = string(tzname, tokens[i], tokens[i+1])
-                    i += 2
-                end
-                value = _tryparse(TimeZone, tzname, translation=timezone_infos)
-                if !isnull(value)
-                    res["timezone"] = get(value)
-                elseif fuzzy == true
-                    tzname = ""
-                    i = oldindex+1
-                else
-                    error("Faild to parse date")
-                end
-            elseif !(lowercase(tokens[i]) in JUMP) && !fuzzy
-                error("Failed to parse date")
             else
-                i += 1
+                newindex = _tryparsetimezone!(res, tokens, i, timezone_infos)
+                if i != newindex
+                    # We found a timezone
+                    i = newindex
+                elseif !(lowercase(tokens[i]) in JUMP) && !fuzzy
+                    error("Failed to parse date")
+                else
+                    i += 1
+                end
             end
         end
     end
@@ -419,13 +370,51 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     processymd!(res, ymd, mstridx, yearfirst=yearfirst, dayfirst=dayfirst)
 
     if !haskey(res, "timezone") && !isnull(tzoffset)
-        if isempty(tzname)
-            tzname = "local"
-        end
-        res["timezone"] = FixedTimeZone(tzname, get(tzoffset))
+        res["timezone"] = FixedTimeZone("local", get(tzoffset))
     end
 
     return res
+end
+
+function _tryparsetimezone!(res::Dict, tokens::Array{ASCIIString}, i::Int, timezone_infos::Dict{AbstractString,TimeZone})
+    len = length(tokens)
+    tzname = ""
+    oldindex = i
+
+    if i <= len && tokens[i] == "("
+        i += 1
+    end
+
+    if i <= len && ismatch(r"^\w+$", tokens[i])
+        tzname = tokens[i]
+        while i+2 <= len && ismatch(r"^\w+$", tokens[i]) &&
+                (tokens[i+1] in ("/", "-", "_") || ismatch(r"^\d+$", tokens[i+1]))
+            tzname = string(tzname, tokens[i+1], tokens[i+2])
+            i += 2
+        end
+        i += 1
+    end
+
+    # Check for something like GMT+3, or BRST+3
+    if i+1 <= len && tokens[i] in ("+", "-") &&
+            isdigit(tokens[i+1]) && length(tokens[i+1]) in (1,2) &&
+            (i+2 > len || tokens[i+2] != ":")
+        tzname = string(tzname, tokens[i], tokens[i+1])
+        i += 2
+    end
+
+    if i <= len && tokens[i] == ")"
+        i += 1
+    end
+
+    value = _tryparse(TimeZone, tzname, translation=timezone_infos)
+    if !isnull(value)
+        res["timezone"] = get(value)
+    else
+        i = oldindex
+    end
+
+    return i
 end
 
 function processymd!(res::Dict, ymd::Array, mstridx=-1; yearfirst=false, dayfirst=false)

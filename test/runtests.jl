@@ -101,9 +101,15 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 FAIL", default=default_zdt))
 @test parse(ZonedDateTime, "1999 2:30 +01:00", default=default_zdt).timezone.name == :local
 @test parse(ZonedDateTime, "1999 2:30 +01:00", default=default_zdt).timezone.offset.utc == Dates.Second(3600)
-@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", default=default_zdt).timezone.name == :TEST
-@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", default=default_zdt).timezone.offset.utc == Dates.Second(-3600)
+@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", timezone_infos=timezone_infos, default=default_zdt).timezone.name == :TEST
+# If both a timezone in timezone_infos and a timezone offset exist use the timezone in timezone_infos
+@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", timezone_infos=timezone_infos, default=default_zdt).timezone.offset.utc == Dates.Second(3600)
+
 @test parse(ZonedDateTime, "1999 2:30 America/Winnipeg", default=default_zdt).timezone.name == symbol("America/Winnipeg")
+@test parse(ZonedDateTime, "1999 2:30 MST7MDT", default=default_zdt).timezone.name == symbol("MST7MDT")
+@test parse(ZonedDateTime, "1999 2:30 Asia/Ho_Chi_Minh", default=default_zdt).timezone.name == symbol("Asia/Ho_Chi_Minh")
+@test parse(ZonedDateTime, "1999 2:30 America/North_Dakota/New_Salem", default=default_zdt).timezone.name == symbol("America/North_Dakota/New_Salem")
+@test parse(ZonedDateTime, "1999 2:30 America/Port-au-Prince", default=default_zdt).timezone.name == symbol("America/Port-au-Prince")
 
 @test parse(ZonedDateTime, "1999 2:30 (America/Winnipeg)", default=default_zdt).timezone.name == symbol("America/Winnipeg")
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 (BAD-)", default=default_zdt))
