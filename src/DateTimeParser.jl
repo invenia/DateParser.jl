@@ -133,7 +133,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     res = Dict{AbstractString, Union{Period,TimeZone}}()
 
     ymd = sizehint!(Int[], 3)  # year/month/day list
-    mstridx = -1  # Index of the month string in ymd
+    monthindex = -1  # Index of the month string in ymd
 
     tzoffset = Nullable{Int}()
 
@@ -266,7 +266,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         month = _tryparse(Month, tokens[i])
                         if !isnull(month)
                             push!(ymd, get(month))
-                            mstridx = length(ymd)
+                            monthindex = length(ymd)
                         end
                     end
                     i += 1
@@ -276,7 +276,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         month = _tryparse(Month, tokens[i])
                         if !isnull(month)
                             push!(ymd, get(month))
-                            mstridx = length(ymd)
+                            monthindex = length(ymd)
                         else
                             push!(ymd, parse(Int, tokens[i]))
                         end
@@ -302,7 +302,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
             elseif !isnull(month)
                 # Month name
                 push!(ymd, get(month))
-                mstridx = length(ymd)
+                monthindex = length(ymd)
                 i += 1
                 if i <= len
                     if tokens[i] in ("-", "/", ".")
@@ -366,7 +366,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         end
     end
 
-    processymd!(res, ymd, mstridx, yearfirst=yearfirst, dayfirst=dayfirst)
+    processymd!(res, ymd, monthindex, yearfirst=yearfirst, dayfirst=dayfirst)
 
     if !haskey(res, "timezone") && !isnull(tzoffset)
         res["timezone"] = FixedTimeZone("local", get(tzoffset))
@@ -416,20 +416,20 @@ function _tryparsetimezone!(res::Dict, tokens::Array{ASCIIString}, i::Int, timez
     return i
 end
 
-function processymd!(res::Dict, ymd::Array, mstridx=-1; yearfirst=false, dayfirst=false)
+function processymd!(res::Dict, ymd::Array{Int}, monthindex=-1; yearfirst=false, dayfirst=false)
     # Process year/month/day
     len_ymd = length(ymd)
 
     if len_ymd > 3
         # More than three members!?
         error("Failed to parse date")
-    elseif len_ymd == 1 || (mstridx != -1 && len_ymd == 2)
+    elseif len_ymd == 1 || (monthindex != -1 && len_ymd == 2)
         # One member, or two members with a month string
-        if mstridx != -1
-            res["month"] = Month(ymd[mstridx])
-            deleteat!(ymd, mstridx)
+        if monthindex != -1
+            res["month"] = Month(ymd[monthindex])
+            deleteat!(ymd, monthindex)
         end
-        if len_ymd > 1 || mstridx == -1
+        if len_ymd > 1 || monthindex == -1
             if ymd[1] > 31
                 res["year"] = Year(ymd[1])
             else
@@ -457,11 +457,11 @@ function processymd!(res::Dict, ymd::Array, mstridx=-1; yearfirst=false, dayfirs
         end
     elseif len_ymd == 3
         # Three members
-        if mstridx == 1
+        if monthindex == 1
             res["month"] = Month(ymd[1])
             res["day"] = Day(ymd[2])
             res["year"] = Year(ymd[3])
-        elseif mstridx == 2
+        elseif monthindex == 2
             if ymd[1] > 31 || (yearfirst && ymd[3] <= 31)
                 # 99-Jan-01
                 res["year"] = Year(ymd[1])
@@ -475,7 +475,7 @@ function processymd!(res::Dict, ymd::Array, mstridx=-1; yearfirst=false, dayfirs
                 res["month"] = Month(ymd[2])
                 res["year"] = Year(ymd[3])
             end
-        elseif mstridx == 3
+        elseif monthindex == 3
             # WTF
             if ymd[2] > 31
                 # 01-99-Jan
