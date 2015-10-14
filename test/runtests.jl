@@ -137,7 +137,7 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test isnull(tryparse(Date, "garbage", default=default_d))
 
 # Test convertyear
-@test DateTimeParser.convertyear(Dates.Year(10), Dates.Year(2075)) == Dates.Year(2110)
+@test DateTimeParser.convertyear(10, 2075) == 2110
 
 # Examples I found in Python's dateutil's pointers links
 date = ZonedDateTime(DateTime(1995, 2, 4), timezone)

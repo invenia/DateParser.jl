@@ -217,17 +217,17 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if idx == :hour
                         res.hour = Hour(value)
                         if decimal != 0
-                            res.minute = get(res.minute) + Minute(round(Int, 60 * decimal))
+                            res.minute = get(res.minute, 0) + Minute(round(Int, 60 * decimal))
                         end
                     elseif idx == :minute
                         res.minute = Minute(value)
                         if decimal != 0
-                            res.second = get(res.second) + Second(round(Int, 60 * decimal))
+                            res.second = get(res.second, 0) + Second(round(Int, 60 * decimal))
                         end
                     elseif idx == :second
                         res.second = Second(value)
                         if decimal != 0
-                            res.millisecond = get(res.millisecond) + Millisecond(round(Int, 1000 * decimal))
+                            res.millisecond = get(res.millisecond, 0) + Millisecond(round(Int, 1000 * decimal))
                         end
                     end
                     i += 1
@@ -304,7 +304,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
             elseif i <= len && haskey(AMPM, lowercase(tokens[i]))
                 # 12am
                 res.hour = Hour(token)
-                res.hour = converthour(get(res.hour), AMPM[lowercase(tokens[i])])
+                res.hour = Hour(converthour(get(res.hour).value, AMPM[lowercase(tokens[i])]))
                 i += 1
             else
                 push!(ymd, parse(Int, token))
@@ -340,7 +340,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         # In this case, 01 is clearly year
                         value = parse(Int, tokens[i+1])
                         # Convert it here to become unambiguous
-                        push!(ymd, convertyear(Year(value)).value)
+                        push!(ymd, convertyear(value))
                         i += 2
                     end
                 end
@@ -349,7 +349,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 if isnull(res.hour)
                     error("Failed to parse date")
                 end
-                res.hour = converthour(get(res.hour), AMPM[lowercase(tokens[i])])
+                res.hour = Hour(converthour(get(res.hour).value, AMPM[lowercase(tokens[i])]))
                 i += 1
             elseif tokens[i] in ("+", "-") && isnull(tzoffset) && i+1 <= len && isdigit(tokens[i+1])
                 # Numbered timzone
@@ -528,7 +528,7 @@ function processymd!(res::Parts, ymd::Array{Int}, monthindex=-1; yearfirst=false
         end
     end
     if !isnull(res.year)
-        res.year = convertyear(get(res.year))
+        res.year = Year(convertyear(get(res.year).value))
     end
 end
 
@@ -574,28 +574,27 @@ end
 
 "Converts a 2 digit year to a 4 digit one within 50 years of convert_year. At the momment
  convert_year defaults to 2000, if people are still using 2 digit years after year 2049
- (hopefully not) then we can change the default to Year(today())"
-function convertyear(year::Year, convert_year=Year(2000))
-    value = year.value
-    if value <= 99
-        century = convert_year.value - (convert_year.value % 100)
-        value += century
-        if abs(value - convert_year.value) >= 50
-            if value < convert_year.value
-                value += 100
+ (hopefully not) then we can change the default to today()"
+function convertyear(year::Int, convert_year=2000)
+    if year <= 99
+        century = convert_year - (convert_year % 100)
+        year += century
+        if abs(year - convert_year) >= 50
+            if year < convert_year
+                year += 100
             else
-                value -= 100
+                year -= 100
             end
         end
     end
-    return Year(value)
+    return year
 end
 
-function converthour(hour::Hour, ampm::Symbol)
-    if hour.value < 12 && ampm == :pm
-        hour = Hour(hour.value + 12)
-    elseif hour.value == 12 && ampm == :am
-        hour = Hour(0)
+function converthour(hour::Int, ampm::Symbol)
+    if hour < 12 && ampm == :pm
+        hour = hour + 12
+    elseif hour == 12 && ampm == :am
+        hour = 0
     end
     return hour
 end
