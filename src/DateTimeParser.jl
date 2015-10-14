@@ -217,17 +217,17 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if idx == :hour
                         res.hour = Hour(value)
                         if decimal != 0
-                            res.minute = Minute(round(Int, 60 * decimal))
+                            res.minute = get(res.minute) + Minute(round(Int, 60 * decimal))
                         end
                     elseif idx == :minute
                         res.minute = Minute(value)
                         if decimal != 0
-                            res.second = Second(round(Int, 60 * decimal))
+                            res.second = get(res.second) + Second(round(Int, 60 * decimal))
                         end
                     elseif idx == :second
                         res.second = Second(value)
                         if decimal != 0
-                            res.millisecond = Millisecond(round(Int, 1000 * decimal))
+                            res.millisecond = get(res.millisecond) + Millisecond(round(Int, 1000 * decimal))
                         end
                     end
                     i += 1
@@ -532,6 +532,8 @@ function processymd!(res::Parts, ymd::Array{Int}, monthindex=-1; yearfirst=false
     end
 end
 
+"Helper function. Parses a `String` containing a `Int` into the fraction part of a `Float64`.
+e.g \"5\" becomes `0.5` and \"450\" becomes `0.450`"
 function parsefractional(s::AbstractString)
     parse(Float64, string(".", s))
 end
