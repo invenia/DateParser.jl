@@ -68,16 +68,17 @@ function Base.parse(::Type{ZonedDateTime}, datetimestring::AbstractString;
     res = _parsedate(datetimestring; args...)
 
     # Fill in default values if none exits
-    get!(res, "year", Year(default))
-    get!(res, "month", Month(default))
-    get!(res, "day", Day(default))
-    get!(res, "hour", Hour(default))
-    get!(res, "minute", Minute(default))
-    get!(res, "second", Second(default))
-    get!(res, "millisecond", Millisecond(default))
-    get!(res, "timezone", default.timezone)
+    res.year = get(res.year, Year(default))
+    res.month = get(res.month, Month(default))
+    res.day = get(res.day, Day(default))
+    res.hour = get(res.hour, Hour(default))
+    res.minute = get(res.minute, Minute(default))
+    res.second = get(res.second, Second(default))
+    res.millisecond = get(res.millisecond, Millisecond(default))
+    res.timezone = get(res.timezone, default.timezone)
 
-    return ZonedDateTime(values(res)...)
+    return ZonedDateTime(DateTime(get(res.year), get(res.month), get(res.day), get(res.hour),
+        get(res.minute), get(res.second), get(res.millisecond)), get(res.timezone))
 end
 
 function Base.parse(::Type{DateTime}, datetimestring::AbstractString;
@@ -92,16 +93,16 @@ function Base.parse(::Type{DateTime}, datetimestring::AbstractString;
     res = _parsedate(datetimestring; args...)
 
     # Fill in default values if none exits
-    get!(res, "year", Year(default))
-    get!(res, "month", Month(default))
-    get!(res, "day", Day(default))
-    get!(res, "hour", Hour(default))
-    get!(res, "minute", Minute(default))
-    get!(res, "second", Second(default))
-    get!(res, "millisecond", Millisecond(default))
+    res.year = get(res.year, Year(default))
+    res.month = get(res.month, Month(default))
+    res.day = get(res.day, Day(default))
+    res.hour = get(res.hour, Hour(default))
+    res.minute = get(res.minute, Minute(default))
+    res.second = get(res.second, Second(default))
+    res.millisecond = get(res.millisecond, Millisecond(default))
 
-    delete!(res, "timezone")
-    return DateTime(values(res)...)
+    return DateTime(get(res.year), get(res.month), get(res.day), get(res.hour),
+        get(res.minute), get(res.second), get(res.millisecond))
 end
 
 function Base.parse(::Type{Date}, datetimestring::AbstractString;
@@ -116,13 +117,30 @@ function Base.parse(::Type{Date}, datetimestring::AbstractString;
     res = _parsedate(datetimestring; args...)
 
     # Fill in default values if none exits
-    get!(res, "year", Year(default))
-    get!(res, "month", Month(default))
-    get!(res, "day", Day(default))
+    res.year = get(res.year, Year(default))
+    res.month = get(res.month, Month(default))
+    res.day = get(res.day, Day(default))
 
-    delete!(res, "timezone")
-    return Date(res["year"], res["month"], res["day"])
+    return Date(get(res.year), get(res.month), get(res.day))
 end
+
+type Parts
+    year::Nullable{Year}
+    month::Nullable{Month}
+    day::Nullable{Day}
+    hour::Nullable{Hour}
+    minute::Nullable{Minute}
+    second::Nullable{Second}
+    millisecond::Nullable{Millisecond}
+    timezone::Nullable{TimeZone}
+    dayofweek::Nullable{DayOfWeek}
+    tzoffset::Nullable{Int}
+    tzname::Nullable{AbstractString}
+    Parts() = new(Nullable{Year}(), Nullable{Month}(), Nullable{Day}(), Nullable{Hour}(),
+        Nullable{Minute}(), Nullable{Second}(), Nullable{Millisecond}(), Nullable{TimeZone}(),
+        Nullable{DayOfWeek}(), Nullable{Int}(), Nullable{AbstractString}())
+end
+Base.convert{T}(::Type{Nullable{T}}, x::Any) = Nullable{T}(T(x))
 
 function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
@@ -130,7 +148,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
     locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
 )
-    res = Dict{AbstractString, Union{Period,TimeZone}}()
+    res = Parts()
 
     ymd = sizehint!(Int[], 3)  # year/month/day list
     monthindex = -1  # Index of the month string in ymd
@@ -150,20 +168,20 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
             if length(ymd) == 3 && tokenlength in (2,4) &&
                 (i>=len || (tokens[i] != ":" && !haskey(HMS, lowercase(tokens[i]))))
                 # 19990101T23[59]
-                res["hour"] = Hour(token[1:2])
+                res.hour = Hour(token[1:2])
                 if tokenlength == 4
-                    res["minute"] = Minute(token[3:4])
+                    res.minute = Minute(token[3:4])
                 end
             elseif tokenlength == 6
                 # YYMMDD or HHMMSS[.ss]
                 if length(ymd) != 0 || (i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1]))
                     # 19990101T235959[.59]
-                    res["hour"] = Hour(token[1:2])
-                    res["minute"] = Minute(token[3:4])
-                    res["second"] = Second(token[5:6])
+                    res.hour = Hour(token[1:2])
+                    res.minute = Minute(token[3:4])
+                    res.second = Second(token[5:6])
                     if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
                         temp = round(Int, 1000 * parse(Float64, string(tokens[i], tokens[i+1])))
-                        res["millisecond"] = Millisecond(temp)
+                        res.millisecond = Millisecond(temp)
                         i += 2
                     end
                 else
@@ -177,10 +195,10 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 push!(ymd, parse(Int, token[5:6]))
                 push!(ymd, parse(Int, token[7:8]))
                 if tokenlength > 8
-                    res["hour"] = Hour(token[9:10])
-                    res["minute"] = Minute(token[11:12])
+                    res.hour = Hour(token[9:10])
+                    res.minute = Minute(token[11:12])
                     if tokenlength > 12
-                        res["second"] = Second(token[13:14])
+                        res.second = Second(token[13:14])
                     end
                 end
             elseif (i <= len && haskey(HMS, lowercase(tokens[i]))) ||
@@ -197,19 +215,19 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 idx = HMS[lowercase(tokens[i])]
                 while true
                     if idx == :hour
-                        res["hour"] = Hour(value)
+                        res.hour = Hour(value)
                         if decimal != 0
-                            res["minute"] = Minute(round(Int, 60 * decimal))
+                            res.minute = Minute(round(Int, 60 * decimal))
                         end
                     elseif idx == :minute
-                        res["minute"] = Minute(value)
+                        res.minute = Minute(value)
                         if decimal != 0
-                            res["second"] = Second(round(Int, 60 * decimal))
+                            res.second = Second(round(Int, 60 * decimal))
                         end
                     elseif idx == :second
-                        res["second"] = Second(value)
+                        res.second = Second(value)
                         if decimal != 0
-                            res["millisecond"] = Millisecond(round(Int, 1000 * decimal))
+                            res.millisecond = Millisecond(round(Int, 1000 * decimal))
                         end
                     end
                     i += 1
@@ -239,19 +257,19 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
             elseif i+1 <= len && tokens[i] == ":"
                 # HH:MM[:SS[.ss]]
-                res["hour"] = Hour(token)
-                res["minute"] = Minute(tokens[i+1])
+                res.hour = Hour(token)
+                res.minute = Minute(tokens[i+1])
                 i += 2
                 if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
                     temp = 60 * parse(Float64, string(".", tokens[i+1]))
-                    res["second"] = Second(round(Int, temp))
+                    res.second = Second(round(Int, temp))
                     i += 2
                 elseif i < len && tokens[i] == ":"
-                    res["second"] = Second(tokens[i+1])
+                    res.second = Second(tokens[i+1])
                     i += 2
                     if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
                         temp = 1000 * parse(Float64, string(".", tokens[i+1]))
-                        res["millisecond"] = Millisecond(round(Int, temp))
+                        res.millisecond = Millisecond(round(Int, temp))
                         i += 2
                     end
                 end
@@ -285,8 +303,8 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
             elseif i <= len && haskey(AMPM, lowercase(tokens[i]))
                 # 12am
-                res["hour"] = Hour(token)
-                res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
+                res.hour = Hour(token)
+                res.hour = converthour(get(res.hour), AMPM[lowercase(tokens[i])])
                 i += 1
             else
                 push!(ymd, parse(Int, token))
@@ -297,7 +315,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
             month = _tryparse(Month, lowercase(token))
             if !isnull(weekday)
                 # Weekday
-                res["weekday"] = get(weekday)
+                res.dayofweek = get(weekday)
                 i += 1
             elseif !isnull(month)
                 # Month name
@@ -328,7 +346,10 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
             elseif haskey(AMPM, lowercase(tokens[i]))
                 # am/pm
-                res["hour"] = converthour(res["hour"], AMPM[lowercase(tokens[i])])
+                if isnull(res.hour)
+                    error("Failed to parse date")
+                end
+                res.hour = converthour(get(res.hour), AMPM[lowercase(tokens[i])])
                 i += 1
             elseif tokens[i] in ("+", "-") && isnull(tzoffset) && i+1 <= len && isdigit(tokens[i+1])
                 # Numbered timzone
@@ -348,7 +369,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     # -[0]3
                     hour = parse(Int, tokens[i])
                 else
-                    error("Faild to read timezone offset after +/-")
+                    error("Failed to read timezone offset after +/-")
                 end
                 tzoffset = Nullable{Int}(signal * (hour * 3600 + minute * 60))
                 i += 1
@@ -368,14 +389,14 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
 
     processymd!(res, ymd, monthindex, yearfirst=yearfirst, dayfirst=dayfirst)
 
-    if !haskey(res, "timezone") && !isnull(tzoffset)
-        res["timezone"] = FixedTimeZone("local", get(tzoffset))
+    if isnull(res.timezone) && !isnull(tzoffset)
+        res.timezone = FixedTimeZone("local", get(tzoffset))
     end
 
     return res
 end
 
-function _tryparsetimezone!(res::Dict, tokens::Array{ASCIIString}, i::Int, timezone_infos::Dict{AbstractString,TimeZone})
+function _tryparsetimezone!(res::Parts, tokens::Array{ASCIIString}, i::Int, timezone_infos::Dict{AbstractString,TimeZone})
     len = length(tokens)
     tzname = ""
     oldindex = i
@@ -408,7 +429,7 @@ function _tryparsetimezone!(res::Dict, tokens::Array{ASCIIString}, i::Int, timez
 
     value = _tryparse(TimeZone, tzname, translation=timezone_infos)
     if !isnull(value)
-        res["timezone"] = get(value)
+        res.timezone = get(value)
     else
         i = oldindex
     end
@@ -416,7 +437,7 @@ function _tryparsetimezone!(res::Dict, tokens::Array{ASCIIString}, i::Int, timez
     return i
 end
 
-function processymd!(res::Dict, ymd::Array{Int}, monthindex=-1; yearfirst=false, dayfirst=false)
+function processymd!(res::Parts, ymd::Array{Int}, monthindex=-1; yearfirst=false, dayfirst=false)
     # Process year/month/day
     len_ymd = length(ymd)
 
@@ -426,88 +447,88 @@ function processymd!(res::Dict, ymd::Array{Int}, monthindex=-1; yearfirst=false,
     elseif len_ymd == 1 || (monthindex != -1 && len_ymd == 2)
         # One member, or two members with a month string
         if monthindex != -1
-            res["month"] = Month(ymd[monthindex])
+            res.month = Month(ymd[monthindex])
             deleteat!(ymd, monthindex)
         end
         if len_ymd > 1 || monthindex == -1
             if ymd[1] > 31
-                res["year"] = Year(ymd[1])
+                res.year = Year(ymd[1])
             else
-                res["day"] = Day(ymd[1])
+                res.day = Day(ymd[1])
             end
         end
     elseif len_ymd == 2
         # Two members with numbers
         if ymd[1] > 31
             # 99-01
-            res["year"] = Year(ymd[1])
-            res["month"] = Month(ymd[2])
+            res.year = Year(ymd[1])
+            res.month = Month(ymd[2])
         elseif ymd[2] > 31
             # 01-99
-            res["month"] = Month(ymd[1])
-            res["year"] = Year(ymd[2])
+            res.month = Month(ymd[1])
+            res.year = Year(ymd[2])
         elseif dayfirst && ymd[2] <= 12
             # 13-01
-            res["day"] = Day(ymd[1])
-            res["month"] = Month(ymd[2])
+            res.day = Day(ymd[1])
+            res.month = Month(ymd[2])
         else
             # 01-13
-            res["month"] = Month(ymd[1])
-            res["day"] = Day(ymd[2])
+            res.month = Month(ymd[1])
+            res.day = Day(ymd[2])
         end
     elseif len_ymd == 3
         # Three members
         if monthindex == 1
-            res["month"] = Month(ymd[1])
-            res["day"] = Day(ymd[2])
-            res["year"] = Year(ymd[3])
+            res.month = Month(ymd[1])
+            res.day = Day(ymd[2])
+            res.year = Year(ymd[3])
         elseif monthindex == 2
             if ymd[1] > 31 || (yearfirst && ymd[3] <= 31)
                 # 99-Jan-01
-                res["year"] = Year(ymd[1])
-                res["month"] = Month(ymd[2])
-                res["day"] = Day(ymd[3])
+                res.year = Year(ymd[1])
+                res.month = Month(ymd[2])
+                res.day = Day(ymd[3])
             else
                 # 01-Jan-01
                 # Give precendence to day-first, since
                 # two-digit years is usually hand-written.
-                res["day"] = Day(ymd[1])
-                res["month"] = Month(ymd[2])
-                res["year"] = Year(ymd[3])
+                res.day = Day(ymd[1])
+                res.month = Month(ymd[2])
+                res.year = Year(ymd[3])
             end
         elseif monthindex == 3
             # WTF
             if ymd[2] > 31
                 # 01-99-Jan
-                res["day"] = Day(ymd[1])
-                res["year"] = Year(ymd[2])
-                res["month"] = Month(ymd[3])
+                res.day = Day(ymd[1])
+                res.year = Year(ymd[2])
+                res.month = Month(ymd[3])
             else
-                res["year"] = Year(ymd[1])
-                res["day"] = Day(ymd[2])
-                res["month"] = Month(ymd[3])
+                res.year = Year(ymd[1])
+                res.day = Day(ymd[2])
+                res.month = Month(ymd[3])
             end
         else
             if ymd[1] > 31 || (yearfirst && ymd[2] <= 12 && ymd[3] <= 31)
                 # 99-01-01
-                res["year"] = Year(ymd[1])
-                res["month"] = Month(ymd[2])
-                res["day"] = Day(ymd[3])
+                res.year = Year(ymd[1])
+                res.month = Month(ymd[2])
+                res.day = Day(ymd[3])
             elseif ymd[1] > 12 || (dayfirst && ymd[2] <= 12)
                 # 13-01-01
-                res["day"] = Day(ymd[1])
-                res["month"] = Month(ymd[2])
-                res["year"] = Year(ymd[3])
+                res.day = Day(ymd[1])
+                res.month = Month(ymd[2])
+                res.year = Year(ymd[3])
             else
                 # 01-13-01
-                res["month"] = Month(ymd[1])
-                res["day"] = Day(ymd[2])
-                res["year"] = Year(ymd[3])
+                res.month = Month(ymd[1])
+                res.day = Day(ymd[2])
+                res.year = Year(ymd[3])
             end
         end
     end
-    if haskey(res, "year")
-        res["year"] = convertyear(res["year"])
+    if !isnull(res.year)
+        res.year = convertyear(get(res.year))
     end
 end
 

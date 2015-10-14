@@ -122,6 +122,8 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test parse(Date, "301213", yearfirst=true, default=default_d) == Date(2030, 12, 13)
 @test parse(Date, "301213", dayfirst=true, default=default_d) == Date(2013, 12, 30)
 
+@test isnull(tryparse(DateTime, "1999-10-13 pm", default=default_dt))
+
 # Unsupported formats
 # MMYYYY is not supported because it will parse as 3 date tokens
 @test parse(Date, "102015", default=default_d) == Date(2015, 10, 20)
