@@ -153,8 +153,6 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     ymd = sizehint!(Int[], 3)  # year/month/day list
     monthindex = -1  # Index of the month string in ymd
 
-    tzoffset = Nullable{Int}()
-
     tokens = tokenize(datetimestring)
     len = length(tokens)
 
@@ -351,28 +349,8 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 end
                 res.hour = Hour(converthour(get(res.hour).value, AMPM[lowercase(tokens[i])]))
                 i += 1
-            elseif tokens[i] in ("+", "-") && isnull(tzoffset) && i+1 <= len && isdigit(tokens[i+1])
-                # Numbered timzone
-                signal = tokens[i] == "+" ? 1 : -1
-
-                i += 1
-                tokenlength = length(tokens[i])
-                hour = minute = 0
-                if tokenlength == 4
-                    # -0300
-                    hour, minute = parse(Int, tokens[i][1:2]), parse(Int, tokens[i][3:end])
-                elseif i+2 <= len && tokens[i+1] == ":" && isdigit(tokens[i+2])
-                    # -03:00
-                    hour, minute = parse(Int, tokens[i]), parse(Int, tokens[i+2])
-                    i += 2
-                elseif tokenlength <= 2
-                    # -[0]3
-                    hour = parse(Int, tokens[i])
-                else
-                    error("Failed to read timezone offset after +/-")
-                end
-                tzoffset = Nullable{Int}(signal * (hour * 3600 + minute * 60))
-                i += 1
+            elseif tokens[i] in ("+", "-") && isnull(res.tzoffset) && i+1 <= len && isdigit(tokens[i+1])
+                i = _parsetimezone_offset!(res, tokens, i)
             else
                 newindex = _tryparsetimezone!(res, tokens, i, timezone_infos)
                 if i != newindex
@@ -389,48 +367,78 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
 
     processymd!(res, ymd, monthindex, yearfirst=yearfirst, dayfirst=dayfirst)
 
-    if isnull(res.timezone) && !isnull(tzoffset)
-        res.timezone = FixedTimeZone("local", get(tzoffset))
+    if isnull(res.timezone) && !isnull(res.tzoffset)
+        res.tzname = get(res.tzname, "local")
+        res.timezone = FixedTimeZone(get(res.tzname), get(res.tzoffset))
     end
 
     return res
 end
 
+function _parsetimezone_offset!(res::Parts, tokens::Array{ASCIIString}, i::Int)
+    # Numbered timzone
+    signal = tokens[i] == "+" ? 1 : -1
+
+    i += 1
+    tokenlength = length(tokens[i])
+    hour = minute = 0
+    if tokenlength == 4
+        # -0300
+        hour, minute = parse(Int, tokens[i][1:2]), parse(Int, tokens[i][3:end])
+    elseif i+2 <= length(tokens) && tokens[i+1] == ":" && isdigit(tokens[i+2])
+        # -03:00
+        hour, minute = parse(Int, tokens[i]), parse(Int, tokens[i+2])
+        i += 2
+    elseif tokenlength <= 2
+        # -[0]3
+        hour = parse(Int, tokens[i])
+    else
+        error("Failed to read timezone offset after +/-")
+    end
+    res.tzoffset = signal * (hour * 3600 + minute * 60)
+    i += 1
+
+    return i
+end
+
 function _tryparsetimezone!(res::Parts, tokens::Array{ASCIIString}, i::Int, timezone_infos::Dict{AbstractString,TimeZone})
     len = length(tokens)
-    tzname = ""
     oldindex = i
+    inbrackets = false
 
     if i <= len && tokens[i] == "("
+        inbrackets = true
         i += 1
     end
 
     if i <= len && ismatch(r"^\w+$", tokens[i])
-        tzname = tokens[i]
+        res.tzname = tokens[i]
         while i+2 <= len && ismatch(r"^\w+$", tokens[i]) &&
                 (tokens[i+1] in ("/", "-", "_") || ismatch(r"^\d+$", tokens[i+1]))
-            tzname = string(tzname, tokens[i+1], tokens[i+2])
+            res.tzname = string(get(res.tzname), tokens[i+1], tokens[i+2])
             i += 2
         end
         i += 1
     end
 
     # Check for something like GMT+3, or BRST+3
-    if i+1 <= len && tokens[i] in ("+", "-") &&
-            isdigit(tokens[i+1]) && length(tokens[i+1]) in (1,2) &&
-            (i+2 > len || tokens[i+2] != ":")
-        tzname = string(tzname, tokens[i], tokens[i+1])
-        i += 2
+    if i+1 <= len && tokens[i] in ("+", "-") && isdigit(tokens[i+1])
+        newindex = _parsetimezone_offset!(res, tokens, i)
+        while i < newindex
+            res.tzname = string(get(res.tzname, ""), tokens[i])
+            i += 1
+        end
     end
 
-    if i <= len && tokens[i] == ")"
+    if inbrackets && i <= len && tokens[i] == ")"
         i += 1
     end
 
-    value = _tryparse(TimeZone, tzname, translation=timezone_infos)
+    value = _tryparse(TimeZone, get(res.tzname, ""), translation=timezone_infos)
     if !isnull(value)
         res.timezone = get(value)
-    else
+    elseif !inbrackets || isnull(res.tzoffset)
+        res.tzname = Nullable{AbstractString}()
         i = oldindex
     end
 
