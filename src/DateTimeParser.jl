@@ -121,7 +121,7 @@ function Base.parse(::Type{Date}, datetimestring::AbstractString;
     get!(res, "day", Day(default))
 
     delete!(res, "timezone")
-    return Date(values(res)...)
+    return Date(res["year"], res["month"], res["day"])
 end
 
 function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
@@ -167,7 +167,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         i += 2
                     end
                 else
-                    push!(ymd, convertyear(Year(token[1:2])).value)
+                    push!(ymd, parse(Int, token[1:2]))
                     push!(ymd, parse(Int, token[3:4]))
                     push!(ymd, parse(Int, token[5:end]))
                 end

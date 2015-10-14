@@ -119,6 +119,13 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 
 @test parse(DateTime, "2015.10.02 10:21:59.45", default=default_dt) == DateTime(2015, 10, 2, 10, 21, 59, 450)
 
+@test parse(Date, "301213", yearfirst=true, default=default_d) == Date(2030, 12, 13)
+@test parse(Date, "301213", dayfirst=true, default=default_d) == Date(2013, 12, 30)
+
+# Unsupported formats
+# MMYYYY is not supported because it will parse as 3 date tokens
+@test parse(Date, "102015", default=default_d) == Date(2015, 10, 20)
+
 # Test tryparse
 @test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
 @test isnull(tryparse(ZonedDateTime, "garbage", default=default_zdt))
