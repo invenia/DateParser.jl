@@ -140,7 +140,6 @@ type Parts
         Nullable{Minute}(), Nullable{Second}(), Nullable{Millisecond}(), Nullable{TimeZone}(),
         Nullable{DayOfWeek}(), Nullable{Int}(), Nullable{AbstractString}())
 end
-Base.convert{T}(::Type{Nullable{T}}, x::Any) = Nullable{T}(T(x))
 
 function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
