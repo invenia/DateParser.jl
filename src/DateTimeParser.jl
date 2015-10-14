@@ -180,7 +180,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     res.minute = Minute(token[3:4])
                     res.second = Second(token[5:6])
                     if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
-                        temp = round(Int, 1000 * parse(Float64, string(tokens[i], tokens[i+1])))
+                        temp = round(Int, 1000 * parsefractional(tokens[i+1]))
                         res.millisecond = Millisecond(temp)
                         i += 2
                     end
@@ -209,7 +209,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 value = parse(Int, token)
                 decimal = 0.0
                 if tokens[i] == "."
-                    decimal = parse(Float64, string(".", tokens[i+1]))
+                    decimal = parsefractional(tokens[i+1])
                     i += 2
                 end
                 idx = HMS[lowercase(tokens[i])]
@@ -243,7 +243,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         value = parse(Int, token)
                         decimal = 0.0
                         if i+1 <= len tokens[i] == "." && isdigit(tokens[i+1])
-                            decimal = parse(Float64, string(".", tokens[i+1]))
+                            decimal = parsefractional(tokens[i+1])
                             i += 2
                         end
                         if i <= len && haskey(HMS, lowercase(tokens[i]))
@@ -261,14 +261,14 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 res.minute = Minute(tokens[i+1])
                 i += 2
                 if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
-                    temp = 60 * parse(Float64, string(".", tokens[i+1]))
+                    temp = 60 * parsefractional(tokens[i+1])
                     res.second = Second(round(Int, temp))
                     i += 2
                 elseif i < len && tokens[i] == ":"
                     res.second = Second(tokens[i+1])
                     i += 2
                     if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
-                        temp = 1000 * parse(Float64, string(".", tokens[i+1]))
+                        temp = 1000 * parsefractional(tokens[i+1])
                         res.millisecond = Millisecond(round(Int, temp))
                         i += 2
                     end
@@ -530,6 +530,10 @@ function processymd!(res::Parts, ymd::Array{Int}, monthindex=-1; yearfirst=false
     if !isnull(res.year)
         res.year = convertyear(get(res.year))
     end
+end
+
+function parsefractional(s::AbstractString)
+    parse(Float64, string(".", s))
 end
 
 function _tryparse(::Type{Month}, s::AbstractString; locale::AbstractString="english")
