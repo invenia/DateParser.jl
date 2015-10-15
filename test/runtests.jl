@@ -150,6 +150,24 @@ temp = parse(ZonedDateTime, "1999 2:30 +1:00 (FOO)", default=default_zdt)
 @test DateTimeParser.convertyear(10, 2075) == 2110
 
 
+# Test locale
+DateTimeParser.DAYOFWEEKTOVALUE["french"] = Dict{UTF8String, Int64}("lundi" => 1, "mardi" => 2,
+    "mercredi" => 3, "jeudi" => 4, "vendredi" => 5, "samedi" => 6, "dimanche" => 7)
+DateTimeParser.DAYOFWEEKABBRTOVALUE["french"] = Dict{UTF8String, Int64}("lun" => 1, "mar" => 2,
+    "mer" => 3, "jeu" => 4, "ven" => 5, "sam" => 6, "dim" => 7)
+DateTimeParser.MONTHTOVALUE["french"] = Dict{UTF8String, Int64}("janvier" => 1, "février" => 2,
+    "mars" => 3, "avril" => 4, "mai" => 5, "juin" => 6, "juillet" => 7, "août" => 8,
+    "septembre" => 9, "octobre" => 10, "novembre" => 11, "décembre" => 12)
+DateTimeParser.MONTHABBRTOVALUE["french"] = Dict{UTF8String, Int64}("janv" => 1, "févr" => 2,
+    "mars" => 3, "avril" => 4, "mai" => 5, "juin" => 6, "juil" => 7, "août" => 8,
+    "sept" => 9, "oct" => 10, "nov" => 11, "déc" => 12)
+
+@test parse(DateTime, "28 mai 2014", locale="french", default=default_dt) == DateTime(2014, 5, 28)
+@test parse(DateTime, "28 févr 2014", locale="french", default=default_dt) == DateTime(2014, 2, 28)
+@test parse(DateTime, "jeu 28 août 2014", locale="french", default=default_dt) == DateTime(2014, 8, 28)
+@test parse(DateTime, "lundi 28 avril 2014", locale="french", default=default_dt) == DateTime(2014, 4, 28)
+
+
 # Examples I found in Python's dateutil's pointers links
 date = ZonedDateTime(DateTime(1995, 2, 4), timezone)
 @test parse(ZonedDateTime, "1995-02-04", default=default_zdt) == date
