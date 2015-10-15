@@ -43,12 +43,12 @@ for name in ("DAYOFWEEK", "DAYOFWEEKABBR", "MONTH", "MONTHABBR")
     end
 end
 
-const JUMP = (
+const JUMP = [
     " ", ".", ",", ";", "-", "/", "'", "at", "on", "and", "ad", "m", "t", "of", "st",
     "nd", "rd", "th", "the",
-)
-const PERTAIN = ("of",)
-const UTCZONE = ("utc", "gmt", "z",)
+]
+const PERTAIN = ["of",]
+const UTCZONE = ["utc", "gmt", "z",]
 
 function Base.tryparse{T<:TimeType}(::Type{T}, str::AbstractString; args...)
     try
