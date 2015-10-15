@@ -36,8 +36,8 @@ const AMPM = Dict{UTF8String,Dict{UTF8String,Symbol}}("english"=>english_ampm)
 
 # Name to value translations
 for name in ("DAYOFWEEK", "DAYOFWEEKABBR", "MONTH", "MONTHABBR")
-    valueto = symbol("VALUETO" * name)
-    tovalue = symbol(name * "TOVALUE")
+    valueto = Symbol("VALUETO" * name)
+    tovalue = Symbol(name * "TOVALUE")
     @eval begin
         const $tovalue = [locale => Dict(zip(map(lowercase, values(d)), keys(d))) for (locale, d) in $valueto]
     end
@@ -273,9 +273,9 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if isdigit(tokens[i])
                         push!(ymd, parse(Int, tokens[i]))
                     else
-                        month = _tryparse(Month, tokens[i], locale=locale)
-                        if !isnull(month)
-                            push!(ymd, get(month))
+                        m = _tryparse(Month, tokens[i], locale=locale)
+                        if !isnull(m)
+                            push!(ymd, get(m))
                             monthindex = length(ymd)
                         end
                     end
@@ -283,9 +283,9 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if i <= len && tokens[i] == sep
                         # We have three members
                         i += 1
-                        month = _tryparse(Month, tokens[i], locale=locale)
-                        if !isnull(month)
-                            push!(ymd, get(month))
+                        m = _tryparse(Month, tokens[i], locale=locale)
+                        if !isnull(m)
+                            push!(ymd, get(m))
                             monthindex = length(ymd)
                         else
                             push!(ymd, parse(Int, tokens[i]))
@@ -304,14 +304,14 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         else
             # Token is not a number
             weekday = _tryparse(DayOfWeek, lowercase(token), locale=locale)
-            month = _tryparse(Month, lowercase(token), locale=locale)
+            m = _tryparse(Month, lowercase(token), locale=locale)
             if !isnull(weekday)
                 # Weekday
                 res.dayofweek = get(weekday)
                 i += 1
-            elseif !isnull(month)
+            elseif !isnull(m)
                 # Month name
-                push!(ymd, get(month))
+                push!(ymd, get(m))
                 monthindex = length(ymd)
                 i += 1
                 if i <= len
@@ -375,23 +375,23 @@ function _parsetimezone_offset!(res::Parts, tokens::Array{ASCIIString}, i::Int)
 
     i += 1
     tokenlength = length(tokens[i])
-    hour = minute = 0
+    h = mi = 0
     if tokenlength == 4
         # -0300
-        hour, minute = parse(Int, tokens[i][1:2]), parse(Int, tokens[i][3:end])
+        h, mi = parse(Int, tokens[i][1:2]), parse(Int, tokens[i][3:end])
     elseif i+2 <= length(tokens) && tokens[i+1] == ":" && isdigit(tokens[i+2])
         # -03:00
-        hour, minute = parse(Int, tokens[i]), parse(Int, tokens[i+2])
+        h, mi = parse(Int, tokens[i]), parse(Int, tokens[i+2])
         i += 2
     elseif tokenlength <= 2
         # -[0]3
-        hour = parse(Int, tokens[i])
+        h = parse(Int, tokens[i])
     else
         error("Failed to read timezone offset")
     end
-    hour < 24 || error("Hour: $hour out of range (0:23)")
-    minute < 60 || error("Minute: $minute out of range (0:59)")
-    res.tzoffset = signal * (hour * 3600 + minute * 60)
+    h < 24 || error("Hour: $h out of range (0:23)")
+    mi < 60 || error("Minute: $mi out of range (0:59)")
+    res.tzoffset = signal * (h * 3600 + mi * 60)
     i += 1
 
     return i
@@ -574,13 +574,13 @@ function convertyear(year::Int, convert_year=2000)
     return year
 end
 
-function converthour(hour::Int, ampm::Symbol)
-    if hour < 12 && ampm == :pm
-        hour = hour + 12
-    elseif hour == 12 && ampm == :am
-        hour = 0
+function converthour(h::Int, ampm::Symbol)
+    if h < 12 && ampm == :pm
+        h = h + 12
+    elseif h == 12 && ampm == :am
+        h = 0
     end
-    return hour
+    return h
 end
 
 function tokenize{Str<:AbstractString}(input::Str)
