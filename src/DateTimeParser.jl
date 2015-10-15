@@ -278,7 +278,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if isdigit(tokens[i])
                         push!(ymd, parse(Int, tokens[i]))
                     else
-                        month = _tryparse(Month, tokens[i])
+                        month = _tryparse(Month, tokens[i], locale=locale)
                         if !isnull(month)
                             push!(ymd, get(month))
                             monthindex = length(ymd)
@@ -288,7 +288,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                     if i <= len && tokens[i] == sep
                         # We have three members
                         i += 1
-                        month = _tryparse(Month, tokens[i])
+                        month = _tryparse(Month, tokens[i], locale=locale)
                         if !isnull(month)
                             push!(ymd, get(month))
                             monthindex = length(ymd)
@@ -308,8 +308,8 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
             end
         else
             # Token is not a number
-            weekday = _tryparse(DayOfWeek, lowercase(token))
-            month = _tryparse(Month, lowercase(token))
+            weekday = _tryparse(DayOfWeek, lowercase(token), locale=locale)
+            month = _tryparse(Month, lowercase(token), locale=locale)
             if !isnull(weekday)
                 # Weekday
                 res.dayofweek = get(weekday)
