@@ -1,4 +1,4 @@
-module DateTimeParser
+module DateParser
 
 using Base.Dates
 using TimeZones

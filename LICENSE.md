@@ -1,4 +1,4 @@
-The DateTimeParser.jl package is licensed under the Mozilla Public License, Version 2.0:
+The DateParser.jl package is licensed under the Mozilla Public License, Version 2.0:
 
 > Copyright (c) 2015: Invenia Technical Computing Corporation.
 >

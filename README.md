@@ -1,11 +1,11 @@
-# DateTimeParser
+# DateParser
 
 [![Build Status](https://travis-ci.org/invenia/DateTimeParser.jl.svg?branch=master)](https://travis-ci.org/invenia/DateTimeParser.jl)
 [![Coverage Status](https://coveralls.io/repos/invenia/DateTimeParser.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/invenia/DateTimeParser.jl?branch=master)
 [![codecov.io](http://codecov.io/github/invenia/DateTimeParser.jl/coverage.svg?branch=master)](http://codecov.io/github/invenia/DateTimeParser.jl?branch=master)
 
 
-Automatic parsing of DateTime strings
+Automatic parsing of date strings
 
 ## Usage
 

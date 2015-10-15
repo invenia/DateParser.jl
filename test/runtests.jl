@@ -1,11 +1,11 @@
-using DateTimeParser
+using DateParser
 using Base.Test
 
 using TimeZones
 
-@test DateTimeParser.tokenize("⁇.éAû2") == ["⁇.", "éAû", "2"]
-@test DateTimeParser.tokenize("1999 Feb 3 12:20:30.5") == ["1999", "Feb", "3", "12", ":", "20", ":", "30", ".", "5"]
-@test DateTimeParser.tokenize("GMT+3") == ["GMT", "+", "3"]  # Note: ispunct('+') is false
+@test DateParser.tokenize("⁇.éAû2") == ["⁇.", "éAû", "2"]
+@test DateParser.tokenize("1999 Feb 3 12:20:30.5") == ["1999", "Feb", "3", "12", ":", "20", ":", "30", ".", "5"]
+@test DateParser.tokenize("GMT+3") == ["GMT", "+", "3"]  # Note: ispunct('+') is false
 
 timezone = TimeZone("Europe/Warsaw")
 default_d = Date(1976, 7, 4)
@@ -156,22 +156,22 @@ temp = parse(ZonedDateTime, "1999 2:30 +1:00 (FOO)", default=default_zdt)
 @test isnull(tryparse(Date, "garbage", default=default_d))
 
 # Test convertyear
-@test DateTimeParser.convertyear(10, 2075) == 2110
+@test DateParser.convertyear(10, 2075) == 2110
 
 
 # Test locale
-DateTimeParser.DAYOFWEEKTOVALUE["french"] = Dict("lundi" => 1, "mardi" => 2,
+DateParser.DAYOFWEEKTOVALUE["french"] = Dict("lundi" => 1, "mardi" => 2,
     "mercredi" => 3, "jeudi" => 4, "vendredi" => 5, "samedi" => 6, "dimanche" => 7)
-DateTimeParser.DAYOFWEEKABBRTOVALUE["french"] = Dict("lun" => 1, "mar" => 2,
+DateParser.DAYOFWEEKABBRTOVALUE["french"] = Dict("lun" => 1, "mar" => 2,
     "mer" => 3, "jeu" => 4, "ven" => 5, "sam" => 6, "dim" => 7)
-DateTimeParser.MONTHTOVALUE["french"] = Dict("janvier" => 1, "février" => 2,
+DateParser.MONTHTOVALUE["french"] = Dict("janvier" => 1, "février" => 2,
     "mars" => 3, "avril" => 4, "mai" => 5, "juin" => 6, "juillet" => 7, "août" => 8,
     "septembre" => 9, "octobre" => 10, "novembre" => 11, "décembre" => 12)
-DateTimeParser.MONTHABBRTOVALUE["french"] = Dict("janv" => 1, "févr" => 2,
+DateParser.MONTHABBRTOVALUE["french"] = Dict("janv" => 1, "févr" => 2,
     "mars" => 3, "avril" => 4, "mai" => 5, "juin" => 6, "juil" => 7, "août" => 8,
     "sept" => 9, "oct" => 10, "nov" => 11, "déc" => 12)
-DateTimeParser.HMS["french"] = DateTimeParser.HMS["english"]
-DateTimeParser.AMPM["french"] = DateTimeParser.AMPM["english"]
+DateParser.HMS["french"] = DateParser.HMS["english"]
+DateParser.AMPM["french"] = DateParser.AMPM["english"]
 
 @test parse(DateTime, "28 mai 2014", locale="french", default=default_dt) == DateTime(2014, 5, 28)
 @test parse(DateTime, "28 févr 2014", locale="french", default=default_dt) == DateTime(2014, 2, 28)
