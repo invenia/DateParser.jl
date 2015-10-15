@@ -131,6 +131,10 @@ temp = parse(ZonedDateTime, "1999 2:30 +1:00 (FOO)", default=default_zdt)
 @test temp.timezone.name == symbol("FOO")
 @test temp.timezone.offset.utc == Dates.Second(3600)
 
+temp = parse(ZonedDateTime, "19991212 0259+1:00")
+@test temp.timezone.offset.utc == Dates.Second(3600)
+@test TimeZones.localtime(temp) == DateTime(1999, 12, 12, 2, 59)
+
 
 # Weird things
 @test parse(ZonedDateTime, "1999 2:30 America / Winnipeg", default=default_zdt).timezone.name == symbol("America/Winnipeg")
