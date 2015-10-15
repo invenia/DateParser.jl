@@ -131,6 +131,11 @@ temp = parse(ZonedDateTime, "1999 2:30 +1:00 (FOO)", default=default_zdt)
 @test temp.timezone.name == symbol("FOO")
 @test temp.timezone.offset.utc == Dates.Second(3600)
 
+
+# Weird things
+@test parse(ZonedDateTime, "1999 2:30 America / Winnipeg", default=default_zdt).timezone.name == symbol("America/Winnipeg")
+@test parse(ZonedDateTime, "1999 2:30 MST 7 MDT", default=default_zdt).timezone.name == symbol("MST7MDT")
+
 # Unsupported formats
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 (FOO) +1:00", default=default_zdt))
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 +1:00 FOO", default=default_zdt))
