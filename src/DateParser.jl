@@ -63,68 +63,59 @@ function Base.parse(::Type{ZonedDateTime}, datetimestring::AbstractString;
     args...
 )
     datetimestring = strip(datetimestring)
-
     if isempty(datetimestring)
         return default
     end
-
     res = _parsedate(datetimestring; args...)
 
-    # Fill in default values if none exits
-    res.year = get(res.year, Year(default))
-    res.month = get(res.month, Month(default))
-    res.day = get(res.day, Day(default))
-    res.hour = get(res.hour, Hour(default))
-    res.minute = get(res.minute, Minute(default))
-    res.second = get(res.second, Second(default))
-    res.millisecond = get(res.millisecond, Millisecond(default))
-    res.timezone = get(res.timezone, default.timezone)
-
-    return ZonedDateTime(DateTime(get(res.year), get(res.month), get(res.day), get(res.hour),
-        get(res.minute), get(res.second), get(res.millisecond)), get(res.timezone))
+    return ZonedDateTime(
+        DateTime(
+            get(res.year, Year(default)),
+            get(res.month, Month(default)),
+            get(res.day, Day(default)),
+            get(res.hour, Hour(default)),
+            get(res.minute, Minute(default)),
+            get(res.second, Second(default)),
+            get(res.millisecond, Millisecond(default))
+        ),
+        get(res.timezone, default.timezone)
+    )
 end
 
 function Base.parse(::Type{DateTime}, datetimestring::AbstractString;
     default::DateTime=DateTime(year(today())), args...
 )
     datetimestring = strip(datetimestring)
-
     if isempty(datetimestring)
         return default
     end
-
     res = _parsedate(datetimestring; args...)
 
-    # Fill in default values if none exits
-    res.year = get(res.year, Year(default))
-    res.month = get(res.month, Month(default))
-    res.day = get(res.day, Day(default))
-    res.hour = get(res.hour, Hour(default))
-    res.minute = get(res.minute, Minute(default))
-    res.second = get(res.second, Second(default))
-    res.millisecond = get(res.millisecond, Millisecond(default))
-
-    return DateTime(get(res.year), get(res.month), get(res.day), get(res.hour),
-        get(res.minute), get(res.second), get(res.millisecond))
+    return DateTime(
+        get(res.year, Year(default)),
+        get(res.month, Month(default)),
+        get(res.day, Day(default)),
+        get(res.hour, Hour(default)),
+        get(res.minute, Minute(default)),
+        get(res.second, Second(default)),
+        get(res.millisecond, Millisecond(default))
+    )
 end
 
 function Base.parse(::Type{Date}, datetimestring::AbstractString;
     default::Date=Date(year(today())), args...
 )
     datetimestring = strip(datetimestring)
-
     if isempty(datetimestring)
         return default
     end
-
     res = _parsedate(datetimestring; args...)
 
-    # Fill in default values if none exits
-    res.year = get(res.year, Year(default))
-    res.month = get(res.month, Month(default))
-    res.day = get(res.day, Day(default))
-
-    return Date(get(res.year), get(res.month), get(res.day))
+    return Date(
+        get(res.year, Year(default)),
+        get(res.month, Month(default)),
+        get(res.day, Day(default))
+    )
 end
 
 type Parts
