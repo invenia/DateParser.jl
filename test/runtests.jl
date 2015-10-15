@@ -137,6 +137,10 @@ temp = parse(ZonedDateTime, "1999 2:30 +1:00 (FOO)", default=default_zdt)
 # MMYYYY is not supported because it will parse as 3 date tokens
 @test parse(Date, "102015", default=default_d) == Date(2015, 10, 20)
 
+# Failed checks
+@test isnull(tryparse(ZonedDateTime, "1999 2:30 +25:00", default=default_zdt))
+@test isnull(tryparse(ZonedDateTime, "1999 2:30 +00:62", default=default_zdt))
+
 
 # Test tryparse
 @test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))

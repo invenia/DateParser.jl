@@ -392,8 +392,10 @@ function _parsetimezone_offset!(res::Parts, tokens::Array{ASCIIString}, i::Int)
         # -[0]3
         hour = parse(Int, tokens[i])
     else
-        error("Failed to read timezone offset after +/-")
+        error("Failed to read timezone offset")
     end
+    hour < 24 || error("Hour: $hour out of range (0:23)")
+    minute < 60 || error("Minute: $minute out of range (0:59)")
     res.tzoffset = signal * (hour * 3600 + minute * 60)
     i += 1
 
