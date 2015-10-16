@@ -6,6 +6,7 @@ using TimeZones
 import Base.Dates: VALUETODAYOFWEEK, VALUETODAYOFWEEKABBR, VALUETOMONTH, VALUETOMONTHABBR
 import TimeZones: localtime
 
+# Re-export from Base with ZonedDateTime, DateTime, and Date
 export parse, tryparse
 
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
@@ -39,7 +40,8 @@ for name in ("DAYOFWEEK", "DAYOFWEEKABBR", "MONTH", "MONTHABBR")
     valueto = Symbol("VALUETO" * name)
     tovalue = Symbol(name * "TOVALUE")
     @eval begin
-        const $tovalue = [locale => Dict(zip(map(lowercase, values(d)), keys(d))) for (locale, d) in $valueto]
+        const $tovalue = [locale => Dict{UTF8String,Int}(
+            zip(map(lowercase, values(d)), keys(d))) for (locale, d) in $valueto]
     end
 end
 
@@ -50,23 +52,19 @@ const JUMP = [
 const PERTAIN = ["of",]
 const UTCZONE = ["utc", "gmt", "z",]
 
-function Base.tryparse{T<:TimeType}(::Type{T}, str::AbstractString; args...)
+function Base.tryparse{T<:TimeType}(::Type{T}, s::AbstractString; args...)
     try
-        return Nullable{T}(parse(T, str; args...))
+        return Nullable{T}(parse(T, s; args...))
     catch
         return Nullable{T}()
     end
 end
 
-function Base.parse(::Type{ZonedDateTime}, datetimestring::AbstractString;
+function Base.parse(::Type{ZonedDateTime}, zdt::AbstractString;
     default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), FixedTimeZone("UTC", 0)),
     args...
 )
-    datetimestring = strip(datetimestring)
-    if isempty(datetimestring)
-        return default
-    end
-    res = _parsedate(datetimestring; args...)
+    res = _parsedate(zdt; args...)
 
     return ZonedDateTime(
         DateTime(
@@ -82,14 +80,10 @@ function Base.parse(::Type{ZonedDateTime}, datetimestring::AbstractString;
     )
 end
 
-function Base.parse(::Type{DateTime}, datetimestring::AbstractString;
+function Base.parse(::Type{DateTime}, dt::AbstractString;
     default::DateTime=DateTime(year(today())), args...
 )
-    datetimestring = strip(datetimestring)
-    if isempty(datetimestring)
-        return default
-    end
-    res = _parsedate(datetimestring; args...)
+    res = _parsedate(dt; args...)
 
     return DateTime(
         get(res.year, Year(default)),
@@ -102,14 +96,10 @@ function Base.parse(::Type{DateTime}, datetimestring::AbstractString;
     )
 end
 
-function Base.parse(::Type{Date}, datetimestring::AbstractString;
+function Base.parse(::Type{Date}, d::AbstractString;
     default::Date=Date(year(today())), args...
 )
-    datetimestring = strip(datetimestring)
-    if isempty(datetimestring)
-        return default
-    end
-    res = _parsedate(datetimestring; args...)
+    res = _parsedate(d; args...)
 
     return Date(
         get(res.year, Year(default)),
@@ -130,13 +120,12 @@ type Parts
     dayofweek::Nullable{DayOfWeek}
     tzoffset::Nullable{Int}
     tzname::Nullable{AbstractString}
-    Parts() = new(Nullable{Year}(), Nullable{Month}(), Nullable{Day}(), Nullable{Hour}(),
-        Nullable{Minute}(), Nullable{Second}(), Nullable{Millisecond}(), Nullable{TimeZone}(),
-        Nullable{DayOfWeek}(), Nullable{Int}(), Nullable{AbstractString}())
+    Parts() = new(nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
+        nothing, nothing, nothing)
 end
 Base.convert{T}(::Type{Nullable{T}}, x::Any) = Nullable{T}(T(x))
 
-function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
+function _parsedate(s::AbstractString; fuzzy::Bool=false,
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
@@ -145,9 +134,9 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
     res = Parts()
 
     ymd = sizehint!(Int[], 3)  # year/month/day list
-    monthindex = -1  # Index of the month string in ymd
+    monthindex = -1  # Index of a month string in ymd
 
-    tokens = tokenize(datetimestring)
+    tokens = tokenize(s)
     len = length(tokens)
 
     i = 1
@@ -157,14 +146,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         if isdigit(token)
             # Token is a number
             i += 1 # We want to look at what comes after the number
-            if length(ymd) == 3 && tokenlength in (2,4) &&
-                (i>=len || (tokens[i] != ":" && !haskey(HMS[locale], lowercase(tokens[i]))))
-                # 19990101T23[59]
-                res.hour = token[1:2]
-                if tokenlength == 4
-                    res.minute = token[3:4]
-                end
-            elseif tokenlength == 6
+            if tokenlength == 6
                 # YYMMDD or HHMMSS[.ss]
                 if length(ymd) != 0 || (i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1]))
                     # 19990101T235959[.59]
@@ -193,6 +175,12 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                         res.second = token[13:14]
                     end
                 end
+            elseif tokenlength == 9
+                # HHMMSS[mil]
+                res.hour = token[1:2]
+                res.minute = token[3:4]
+                res.second = token[5:6]
+                res.millisecond = token[7:9]
             elseif (i <= len && haskey(HMS[locale], lowercase(tokens[i]))) ||
                     (i+2 <= len && tokens[i] == "." && isdigit(tokens[i+1]) &&
                     haskey(HMS[locale], lowercase(tokens[i+2])))
@@ -299,15 +287,36 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
                 res.hour = converthour(get(res.hour).value, AMPM[locale][lowercase(tokens[i])])
                 i += 1
             else
-                push!(ymd, parse(Int, token))
+                if length(ymd) < 3
+                    push!(ymd, parse(Int, token))
+                elseif tokenlength <= 2
+                    if isnull(res.hour)
+                        res.hour = token
+                    elseif isnull(res.minute)
+                        res.minute = token
+                    elseif isnull(res.second)
+                        res.second = token
+                    elseif isnull(res.millisecond)
+                        res.millisecond = token
+                    elseif !fuzzy
+                        error("Failed to parse date")
+                    end
+                elseif tokenlength == 3 && isnull(res.millisecond)
+                    res.millisecond = token
+                elseif tokenlength == 4 && isnull(res.hour) && isnull(res.minute)
+                    res.hour = token[1:2]
+                    res.minute = token[3:4]
+                elseif !fuzzy
+                    error("Failed to parse date")
+                end
             end
         else
             # Token is not a number
-            weekday = _tryparse(DayOfWeek, lowercase(token), locale=locale)
+            w = _tryparse(DayOfWeek, lowercase(token), locale=locale)
             m = _tryparse(Month, lowercase(token), locale=locale)
-            if !isnull(weekday)
+            if !isnull(w)
                 # Weekday
-                res.dayofweek = get(weekday)
+                res.dayofweek = get(w)
                 i += 1
             elseif !isnull(m)
                 # Month name
@@ -359,7 +368,7 @@ function _parsedate(datetimestring::AbstractString; fuzzy::Bool=false,
         end
     end
 
-    processymd!(res, ymd, monthindex, yearfirst=yearfirst, dayfirst=dayfirst)
+    processymd!(res, ymd, monthindex=monthindex, yearfirst=yearfirst, dayfirst=dayfirst)
 
     if isnull(res.timezone) && !isnull(res.tzoffset)
         res.tzname = get(res.tzname, "local")
@@ -441,7 +450,7 @@ function _tryparsetimezone!(res::Parts, tokens::Array{ASCIIString}, i::Int, time
     return i
 end
 
-function processymd!(res::Parts, ymd::Array{Int}, monthindex=-1; yearfirst=false, dayfirst=false)
+function processymd!(res::Parts, ymd::Array{Int}; monthindex=-1, yearfirst=false, dayfirst=false)
     # Process year/month/day
     len_ymd = length(ymd)
 
