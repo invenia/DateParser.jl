@@ -148,7 +148,8 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
             i += 1 # We want to look at what comes after the number
             if tokenlength == 6
                 # YYMMDD or HHMMSS[.ss]
-                if length(ymd) != 0 || (i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1]))
+                if length(ymd) != 0 ||
+                        (i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1]))
                     # 19990101T235959[.59]
                     res.hour = token[1:2]
                     res.minute = token[3:4]
@@ -352,7 +353,8 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
                 end
                 res.hour = converthour(get(res.hour).value, AMPM[locale][lowercase(tokens[i])])
                 i += 1
-            elseif tokens[i] in ("+", "-") && isnull(res.tzoffset) && i+1 <= len && isdigit(tokens[i+1])
+            elseif i+1 <= len  && tokens[i] in ("+", "-") &&
+                    isnull(res.tzoffset) && isdigit(tokens[i+1])
                 i = _parsetimezone_offset!(res, tokens, i)
             else
                 newindex = _tryparsetimezone!(res, tokens, i, timezone_infos)
@@ -406,7 +408,9 @@ function _parsetimezone_offset!(res::Parts, tokens::Array{ASCIIString}, i::Int)
     return i
 end
 
-function _tryparsetimezone!(res::Parts, tokens::Array{ASCIIString}, i::Int, timezone_infos::Dict{AbstractString,TimeZone})
+function _tryparsetimezone!(res::Parts, tokens::Array{ASCIIString}, i::Int,
+        timezone_infos::Dict{AbstractString,TimeZone}
+)
     len = length(tokens)
     oldindex = i
     inbrackets = false
@@ -450,7 +454,9 @@ function _tryparsetimezone!(res::Parts, tokens::Array{ASCIIString}, i::Int, time
     return i
 end
 
-function processymd!(res::Parts, ymd::Array{Int}; monthindex=-1, yearfirst=false, dayfirst=false)
+function processymd!(res::Parts, ymd::Array{Int};
+        monthindex=-1, yearfirst=false, dayfirst=false
+)
     # Process year/month/day
     len_ymd = length(ymd)
 
@@ -525,15 +531,16 @@ function processymd!(res::Parts, ymd::Array{Int}; monthindex=-1, yearfirst=false
     end
 end
 
-"Helper function. Parses a `String` containing a `Int` into the fraction part of a `Float64`.
-e.g \"5\" becomes `0.5` and \"450\" becomes `0.450`"
+"Helper function. Parses a `String` containing a `Int` into the fraction part of a
+`Float64`. e.g \"5\" becomes `0.5` and \"450\" becomes `0.450`"
 function parsefractional(s::AbstractString)
     parse(Float64, string(".", s))
 end
 
 function _tryparse(::Type{Month}, s::AbstractString; locale::AbstractString="english")
     name = lowercase(s)
-    temp = Nullable{Int}(get(MONTHTOVALUE[locale], name, get(MONTHABBRTOVALUE[locale], name, nothing)))
+    temp = Nullable{Int}(get(MONTHTOVALUE[locale], name,
+        get(MONTHABBRTOVALUE[locale], name, nothing)))
     if isnull(temp)
         Nullable{Month}()
     else
@@ -543,7 +550,8 @@ end
 
 function _tryparse(::Type{DayOfWeek}, s::AbstractString; locale::AbstractString="english")
     name = lowercase(s)
-    temp = Nullable{Int}(get(DAYOFWEEKTOVALUE[locale], name, get(DAYOFWEEKABBRTOVALUE[locale], name, nothing)))
+    temp = Nullable{Int}(get(DAYOFWEEKTOVALUE[locale], name,
+        get(DAYOFWEEKABBRTOVALUE[locale], name, nothing)))
     if isnull(temp)
         Nullable{DayOfWeek}()
     else
