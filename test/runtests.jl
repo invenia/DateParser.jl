@@ -3,10 +3,6 @@ using Base.Test
 
 using TimeZones
 
-@test DateParser.tokenize("⁇.éAû2") == ["⁇.", "éAû", "2"]
-@test DateParser.tokenize("1999 Feb 3 12:20:30.5") == ["1999", "Feb", "3", "12", ":", "20", ":", "30", ".", "5"]
-@test DateParser.tokenize("GMT+3") == ["GMT", "+", "3"]  # Note: ispunct('+') is false
-
 timezone = TimeZone("Europe/Warsaw")
 default_d = Date(1976, 7, 4)
 default_dt = DateTime(default_d)
@@ -17,6 +13,32 @@ timezone_infos = Dict{AbstractString, TimeZone}(
     "GMT" => FixedTimeZone("GMT", 0),
     "Etc/GMT+3" => FixedTimeZone("GMT+3", -10800),
 )
+
+# Weird things
+@test parse(ZonedDateTime, "1999 2:30 America / Winnipeg", default=default_zdt).timezone.name == symbol("America/Winnipeg")
+@test parse(ZonedDateTime, "1999 2:30 MST 7 MDT", default=default_zdt).timezone.name == symbol("MST7MDT")
+
+# Unsupported formats
+@test isnull(tryparse(ZonedDateTime, "1999 2:30 (FOO) +1:00", default=default_zdt))
+@test isnull(tryparse(ZonedDateTime, "1999 2:30 +1:00 FOO", default=default_zdt))
+# MMYYYY is not supported because it will parse as 3 date tokens
+@test parse(Date, "102015", default=default_d) == Date(2015, 10, 20)
+
+# Test tokenize
+@test DateParser.tokenize("⁇.éAû2") == ["⁇.", "éAû", "2"]
+@test DateParser.tokenize("1999 Feb 3 12:20:30.5") == ["1999", "Feb", "3", "12", ":", "20", ":", "30", ".", "5"]
+@test DateParser.tokenize("GMT+3") == ["GMT", "+", "3"]  # Note: ispunct('+') is false
+
+# Test tryparse
+@test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
+@test isnull(tryparse(ZonedDateTime, "garbage", default=default_zdt))
+@test get(tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default_dt)) == DateTime(1994, 10, 13, 12, 10, 14)
+@test isnull(tryparse(DateTime, "garbage", default=default_dt))
+@test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default_d)) == Date(1994, 10, 13)
+@test isnull(tryparse(Date, "garbage", default=default_d))
+
+# Test convertyear
+@test DateParser.convertyear(10, 2075) == 2110
 
 # Test all code paths
 @test parse(ZonedDateTime, "", default=default_zdt) == default_zdt
@@ -143,34 +165,9 @@ temp = parse(ZonedDateTime, "1999 2:30 +1:00 (FOO)", default=default_zdt)
 temp = parse(ZonedDateTime, "19991212 0259+1:00")
 @test temp.timezone.offset.utc == Dates.Second(3600)
 @test TimeZones.localtime(temp) == DateTime(1999, 12, 12, 2, 59)
-
-
-# Weird things
-@test parse(ZonedDateTime, "1999 2:30 America / Winnipeg", default=default_zdt).timezone.name == symbol("America/Winnipeg")
-@test parse(ZonedDateTime, "1999 2:30 MST 7 MDT", default=default_zdt).timezone.name == symbol("MST7MDT")
-
-# Unsupported formats
-@test isnull(tryparse(ZonedDateTime, "1999 2:30 (FOO) +1:00", default=default_zdt))
-@test isnull(tryparse(ZonedDateTime, "1999 2:30 +1:00 FOO", default=default_zdt))
-# MMYYYY is not supported because it will parse as 3 date tokens
-@test parse(Date, "102015", default=default_d) == Date(2015, 10, 20)
-
-# Failed checks
+# Out of range
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 +25:00", default=default_zdt))
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 +00:62", default=default_zdt))
-
-
-# Test tryparse
-@test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
-@test isnull(tryparse(ZonedDateTime, "garbage", default=default_zdt))
-@test get(tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default_dt)) == DateTime(1994, 10, 13, 12, 10, 14)
-@test isnull(tryparse(DateTime, "garbage", default=default_dt))
-@test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default_d)) == Date(1994, 10, 13)
-@test isnull(tryparse(Date, "garbage", default=default_d))
-
-# Test convertyear
-@test DateParser.convertyear(10, 2075) == 2110
-
 
 # Test locale
 DateParser.DAYOFWEEKTOVALUE["french"] = Dict("lundi" => 1, "mardi" => 2,
