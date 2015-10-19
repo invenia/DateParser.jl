@@ -138,183 +138,159 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
 
     tokens = tokenize(s)
     len = length(tokens)
+    hint = :none
 
     i = 1
     while i <= len
-        token = tokens[i]
-        tokenlength = length(token)
-        if isdigit(token)
-            # Token is a number
-            i += 1 # We want to look at what comes after the number
+        tokenlength = length(tokens[i])
+        if isdigit(tokens[i])
             if tokenlength == 6
                 # YYMMDD or HHMMSS[.ss]
                 if length(ymd) != 0 ||
-                        (i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1]))
+                        (i+2 <= len && tokens[i+1] == "." && isdigit(tokens[i+2]))
                     # 19990101T235959[.59]
-                    res.hour = token[1:2]
-                    res.minute = token[3:4]
-                    res.second = token[5:6]
-                    if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
-                        temp = round(Int, 1000 * parsefractional(tokens[i+1]))
+                    res.hour = tokens[i][1:2]
+                    res.minute = tokens[i][3:4]
+                    res.second = tokens[i][5:6]
+                    if i+2 <= len && tokens[i+1] == "." && isdigit(tokens[i+2])
+                        temp = round(Int, 1000 * parse_decimal(tokens[i+2]))
                         res.millisecond = temp
                         i += 2
                     end
                 else
-                    push!(ymd, parse(Int, token[1:2]))
-                    push!(ymd, parse(Int, token[3:4]))
-                    push!(ymd, parse(Int, token[5:end]))
+                    push!(ymd, parse(Int, tokens[i][1:2]))
+                    push!(ymd, parse(Int, tokens[i][3:4]))
+                    push!(ymd, parse(Int, tokens[i][5:end]))
                 end
             elseif tokenlength in (8, 12, 14)
                 # YYYYMMDD[hhmm[ss]]
-                push!(ymd, parse(Int, token[1:4]))
-                push!(ymd, parse(Int, token[5:6]))
-                push!(ymd, parse(Int, token[7:8]))
+                push!(ymd, parse(Int, tokens[i][1:4]))
+                push!(ymd, parse(Int, tokens[i][5:6]))
+                push!(ymd, parse(Int, tokens[i][7:8]))
                 if tokenlength > 8
-                    res.hour = token[9:10]
-                    res.minute = token[11:12]
+                    res.hour = tokens[i][9:10]
+                    res.minute = tokens[i][11:12]
                     if tokenlength > 12
-                        res.second = token[13:14]
+                        res.second = tokens[i][13:14]
                     end
                 end
             elseif tokenlength == 9
                 # HHMMSS[mil]
-                res.hour = token[1:2]
-                res.minute = token[3:4]
-                res.second = token[5:6]
-                res.millisecond = token[7:9]
-            elseif (i <= len && haskey(HMS[locale], lowercase(tokens[i]))) ||
-                    (i+2 <= len && tokens[i] == "." && isdigit(tokens[i+1]) &&
-                    haskey(HMS[locale], lowercase(tokens[i+2])))
+                res.hour = tokens[i][1:2]
+                res.minute = tokens[i][3:4]
+                res.second = tokens[i][5:6]
+                res.millisecond = tokens[i][7:9]
+            elseif (hint != :none) ||
+                (i+1 <= len && haskey(HMS[locale], lowercase(tokens[i+1]))) ||
+                (i+3 <= len && tokens[i+1] == "." && isdigit(tokens[i+2]) && haskey(HMS[locale], lowercase(tokens[i+3])))
                 # HH[ ]h or MM[ ]m or SS[.ss][ ]s
 
-                value = parse(Int, token)
+                value = parse(Int, tokens[i])
                 decimal = 0.0
-                if tokens[i] == "."
-                    decimal = parsefractional(tokens[i+1])
+                if i+2 <= len && tokens[i+1] == "."
+                    decimal = parse_decimal(tokens[i+2])
                     i += 2
                 end
-                idx = HMS[locale][lowercase(tokens[i])]
-                while true
-                    if idx == :hour
-                        res.hour = value
-                        if decimal != 0
-                            res.minute = get(res.minute, 0) + Minute(round(Int, 60 * decimal))
-                        end
-                    elseif idx == :minute
-                        res.minute = value
-                        if decimal != 0
-                            res.second = get(res.second, 0) + Second(round(Int, 60 * decimal))
-                        end
-                    elseif idx == :second
-                        res.second = value
-                        if decimal != 0
-                            res.millisecond = get(res.millisecond, 0) + Millisecond(round(Int, 1000 * decimal))
-                        end
-                    end
+
+                if i+1 <= len && haskey(HMS[locale], lowercase(tokens[i+1]))
+                    label = HMS[locale][lowercase(tokens[i+1])]
                     i += 1
-                    if i > len || idx == :second
-                        break
-                    end
-                    # 12h00
-                    token = tokens[i]
-                    if !isdigit(token)
-                        break
-                    else
-                        i += 1
-                        value = parse(Int, token)
-                        decimal = 0.0
-                        if i+1 <= len tokens[i] == "." && isdigit(tokens[i+1])
-                            decimal = parsefractional(tokens[i+1])
-                            i += 2
-                        end
-                        if i <= len && haskey(HMS[locale], lowercase(tokens[i]))
-                            idx = HMS[locale][lowercase(tokens[i])]
-                        elseif idx == :hour
-                            idx = :minute
-                        else
-                            idx = :second
-                        end
-                    end
+                else
+                    label = hint
                 end
-            elseif i+1 <= len && tokens[i] == ":"
+
+                if label == :hour
+                    res.hour = value
+                    if decimal != 0
+                        res.minute = get(res.minute, 0) + Minute(round(Int, 60 * decimal))
+                    end
+                    hint = :minute
+                elseif label == :minute
+                    res.minute = value
+                    if decimal != 0
+                        res.second = get(res.second, 0) + Second(round(Int, 60 * decimal))
+                    end
+                    hint = :second
+                elseif label == :second
+                    res.second = value
+                    if decimal != 0
+                        res.millisecond = get(res.millisecond, 0) + Millisecond(round(Int, 1000 * decimal))
+                    end
+                    hint == :none
+                end
+            elseif i+2 <= len && tokens[i+1] == ":" && isdigit(tokens[i+2])
                 # HH:MM[:SS[.ss]]
-                res.hour = token
-                res.minute = tokens[i+1]
+                res.hour = tokens[i]
+                res.minute = tokens[i+2]
                 i += 2
-                if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
-                    temp = 60 * parsefractional(tokens[i+1])
-                    res.second = round(Int, temp)
+
+                if i+2 <= len && tokens[i+1] == "." && isdigit(tokens[i+2])
+                    res.second = round(Int, 60 * parse_decimal(tokens[i+2]))
                     i += 2
-                elseif i < len && tokens[i] == ":"
-                    res.second = tokens[i+1]
+                elseif i+2 <= len && tokens[i+1] == ":" && isdigit(tokens[i+2])
+                    res.second = tokens[i+2]
                     i += 2
-                    if i+1 <= len && tokens[i] == "." && isdigit(tokens[i+1])
-                        temp = 1000 * parsefractional(tokens[i+1])
-                        res.millisecond = round(Int, temp)
+
+                    if i+2 <= len && tokens[i+1] == "." && isdigit(tokens[i+2])
+                        res.millisecond = round(Int, 1000 * parse_decimal(tokens[i+2]))
                         i += 2
                     end
                 end
-            elseif i <= len && tokens[i] in ("-","/",".")
-                sep = tokens[i]
-                push!(ymd, parse(Int, token))
-                i += 1
-                if i <= len && !(lowercase(tokens[i]) in JUMP)
-                    if isdigit(tokens[i])
-                        push!(ymd, parse(Int, tokens[i]))
+            elseif i+1 <= len && tokens[i+1] in ("-","/",".")
+                push!(ymd, parse(Int, tokens[i]))
+
+                date_seperator = tokens[i+1]
+                while i+2 <= len
+                    seperator, token = tokens[i+1:i+2]
+                    seperator != date_seperator && break
+
+                    if isdigit(token)
+                        push!(ymd, parse(Int, token))
                     else
-                        m = _tryparse(Month, tokens[i], locale=locale)
+                        m = _tryparse(Month, token, locale=locale)
                         if !isnull(m)
                             push!(ymd, get(m))
                             monthindex = length(ymd)
                         end
                     end
-                    i += 1
-                    if i <= len && tokens[i] == sep
-                        # We have three members
-                        i += 1
-                        m = _tryparse(Month, tokens[i], locale=locale)
-                        if !isnull(m)
-                            push!(ymd, get(m))
-                            monthindex = length(ymd)
-                        else
-                            push!(ymd, parse(Int, tokens[i]))
-                        end
-                        i += 1
-                    end
+
+                    i += 2
                 end
-            elseif i <= len && haskey(AMPM[locale], lowercase(tokens[i]))
+            elseif i+1 <= len && haskey(AMPM[locale], lowercase(tokens[i+1]))
                 # 12am
-                res.hour = token
-                res.hour = converthour(get(res.hour).value, AMPM[locale][lowercase(tokens[i])])
+                hour = parse(Int, tokens[i])
+                res.hour = converthour(hour, AMPM[locale][lowercase(tokens[i+1])])
                 i += 1
             else
                 if length(ymd) < 3
-                    push!(ymd, parse(Int, token))
+                    push!(ymd, parse(Int, tokens[i]))
                 elseif tokenlength <= 2
                     if isnull(res.hour)
-                        res.hour = token
+                        res.hour = tokens[i]
                     elseif isnull(res.minute)
-                        res.minute = token
+                        res.minute = tokens[i]
                     elseif isnull(res.second)
-                        res.second = token
+                        res.second = tokens[i]
                     elseif isnull(res.millisecond)
-                        res.millisecond = token
+                        res.millisecond = tokens[i]
                     elseif !fuzzy
                         error("Failed to parse date")
                     end
                 elseif tokenlength == 3 && isnull(res.millisecond)
-                    res.millisecond = token
+                    res.millisecond = tokens[i]
                 elseif tokenlength == 4 && isnull(res.hour) && isnull(res.minute)
-                    res.hour = token[1:2]
-                    res.minute = token[3:4]
+                    res.hour = tokens[i][1:2]
+                    res.minute = tokens[i][3:4]
                 elseif !fuzzy
                     error("Failed to parse date")
                 end
             end
+
+            i += 1
         else
             # Token is not a number
-            w = _tryparse(DayOfWeek, lowercase(token), locale=locale)
-            m = _tryparse(Month, lowercase(token), locale=locale)
+            w = _tryparse(DayOfWeek, lowercase(tokens[i]), locale=locale)
+            m = _tryparse(Month, lowercase(tokens[i]), locale=locale)
             if !isnull(w)
                 # Weekday
                 res.dayofweek = get(w)
@@ -324,37 +300,31 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
                 push!(ymd, get(m))
                 monthindex = length(ymd)
                 i += 1
-                if i <= len
+
+                if i+1 <= len
                     if tokens[i] in ("-", "/", ".")
                         # Jan-01[-99]
-                        sep = tokens[i]
-                        i += 1
-                        push!(ymd, parse(Int, tokens[i]))
-                        i += 1
-                        if i <= len && tokens[i] == sep
-                            # Jan-01-99
-                            i += 1
-                            push!(ymd, parse(Int, tokens[i]))
-                            i += 1
+                        date_seperator = tokens[i]
+                        while i+1 <= len
+                            seperator, token = tokens[i:i+1]
+                            seperator != date_seperator && break
+                            push!(ymd, parse(Int, token))
+                            i += 2
                         end
                     elseif i+1 <= len && tokens[i] in PERTAIN && isdigit(tokens[i+1])
                         # Jan of 01
-                        # In this case, 01 is clearly year
-                        value = parse(Int, tokens[i+1])
-                        # Convert it here to become unambiguous
-                        push!(ymd, convertyear(value))
+                        # In this case "01" is clearly year. Convert it here to be unambiguous
+                        push!(ymd, convertyear(parse(Int, tokens[i+1])))
                         i += 2
                     end
                 end
             elseif haskey(AMPM[locale], lowercase(tokens[i]))
                 # am/pm
-                if isnull(res.hour)
-                    error("Failed to parse date")
-                end
-                res.hour = converthour(get(res.hour).value, AMPM[locale][lowercase(tokens[i])])
+                isnull(res.hour) && error("Failed to parse date")
+                meridiem = AMPM[locale][lowercase(tokens[i])]
+                res.hour = converthour(get(res.hour).value, meridiem)
                 i += 1
-            elseif i+1 <= len  && tokens[i] in ("+", "-") &&
-                    isnull(res.tzoffset) && isdigit(tokens[i+1])
+            elseif i+1 <= len  && tokens[i] in ("+", "-") && isnull(res.tzoffset) && isdigit(tokens[i+1])
                 i = _parsetimezone_offset!(res, tokens, i)
             else
                 newindex = _tryparsetimezone!(res, tokens, i, timezone_infos)
@@ -533,8 +503,9 @@ end
 
 "Helper function. Parses a `String` containing a `Int` into the fraction part of a
 `Float64`. e.g \"5\" becomes `0.5` and \"450\" becomes `0.450`"
-function parsefractional(s::AbstractString)
-    parse(Float64, string(".", s))
+function parse_decimal(s::AbstractString)
+    parse(Int, s) / 10^length(s)
+    # parse(Float64, string(".", s))
 end
 
 function _tryparse(::Type{Month}, s::AbstractString; locale::AbstractString="english")
@@ -591,13 +562,13 @@ function convertyear(year::Int, convert_year=2000)
     return year
 end
 
-function converthour(h::Int, ampm::Symbol)
-    if h < 12 && ampm == :pm
-        h = h + 12
-    elseif h == 12 && ampm == :am
-        h = 0
+function converthour(hour::Integer, ampm::Symbol)
+    if hour < 12 && ampm == :pm
+        hour = hour + 12
+    elseif hour == 12 && ampm == :am
+        hour = 0
     end
-    return h
+    return hour
 end
 
 function tokenize{Str<:AbstractString}(input::Str)
