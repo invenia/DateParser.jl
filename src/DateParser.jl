@@ -259,14 +259,12 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
                 push!(ymd, parse(Int, token))
                 i += 1
                 if i <= len && !(lowercase(tokens[i]) in JUMP)
-                    if isdigit(tokens[i])
-                        push!(ymd, parse(Int, tokens[i]))
+                    m = _tryparse(Month, tokens[i], locale=locale)
+                    if !isnull(m)
+                        push!(ymd, get(m))
+                        monthindex = length(ymd)
                     else
-                        m = _tryparse(Month, tokens[i], locale=locale)
-                        if !isnull(m)
-                            push!(ymd, get(m))
-                            monthindex = length(ymd)
-                        end
+                        push!(ymd, parse(Int, tokens[i]))
                     end
                     i += 1
                     if i <= len && tokens[i] == sep

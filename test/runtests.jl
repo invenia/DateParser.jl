@@ -200,6 +200,10 @@ temp = parse(ZonedDateTime, "1999 2:30 +1:00 (FOO)", default=default_zdt)
 temp = parse(ZonedDateTime, "19991212 0259+1:00")
 @test temp.timezone.offset.utc == Dates.Second(3600)
 @test TimeZones.localtime(temp) == DateTime(1999, 12, 12, 2, 59)
+
+@test isnull(tryparse(Date, "1/b/c", default=default_d))
+@test isnull(tryparse(Date, "1/b/3", default=default_d))
+
 # Out of range
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 +25:00", default=default_zdt))
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 +00:62", default=default_zdt))
