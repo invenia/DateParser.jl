@@ -1,7 +1,85 @@
 using DateParser
 using Base.Test
 
+using Base.Dates
 using TimeZones
+
+import DateParser: DayOfWeek
+
+# Break apart a string into its various tokens
+@test DateParser.tokenize("⁇.éAû2") == ["⁇.", "éAû", "2"]
+@test DateParser.tokenize("1999 Feb 3 12:20:30.5") == ["1999", "Feb", "3", "12", ":", "20", ":", "30", ".", "5"]
+@test DateParser.tokenize("GMT+3") == ["GMT", "+", "3"]  # Note: ispunct('+') is false
+
+@test DateParser.convertyear(10) == 2010
+@test DateParser.convertyear(95) == 1995
+@test DateParser.convertyear(49) == 2049
+@test DateParser.convertyear(50) == 1950
+@test DateParser.convertyear(10, 2075) == 2110  # set current year to 2075
+
+@test DateParser.converthour(1, :am) == 1
+@test DateParser.converthour(1, :pm) == 13
+@test DateParser.converthour(12, :am) == 0
+@test DateParser.converthour(12, :pm) == 12
+@test DateParser.converthour(23, :am) == 23
+
+@test DateParser.parse_decimal("5") == 0.5
+@test DateParser.parse_decimal("50") == 0.5
+@test DateParser.parse_decimal("05") == 0.05
+@test DateParser.parse_decimal("999") == 0.999
+
+# _tryparse {Month}
+@test isequal(DateParser._tryparse(Month, "january"), Nullable(Month(1)))
+@test isequal(DateParser._tryparse(Month, "oct"), Nullable(Month(10)))
+@test isequal(DateParser._tryparse(Month, "garbage"), Nullable{Month}())
+
+# _tryparse {DayOfWeek}
+@test isequal(DateParser._tryparse(DayOfWeek, "monday"), Nullable(DayOfWeek(1)))
+@test isequal(DateParser._tryparse(DayOfWeek, "wed"), Nullable(DayOfWeek(3)))
+@test isequal(DateParser._tryparse(DayOfWeek, "garbage"), Nullable{DayOfWeek}())
+
+# _tryparse {TimeZone}
+let mapping = Dict{AbstractString,TimeZone}("Etc/GMT+3" => FixedTimeZone("GMT+3", -10800))
+    @test isequal(
+        DateParser._tryparse(TimeZone, "America/Winnipeg"),
+        Nullable(TimeZone("America/Winnipeg")),
+    )
+    @test isequal(
+        DateParser._tryparse(TimeZone, "MST7MDT"),
+        Nullable(TimeZone("MST7MDT")),
+    )
+    @test isequal(
+        DateParser._tryparse(TimeZone, "Asia/Ho_Chi_Minh"),
+        Nullable(TimeZone("Asia/Ho_Chi_Minh"))
+    )
+    @test isequal(
+        DateParser._tryparse(TimeZone, "America/North_Dakota/New_Salem"),
+        Nullable(TimeZone("America/North_Dakota/New_Salem")),
+    )
+    @test isequal(
+        DateParser._tryparse(TimeZone, "America/Port-au-Prince"),
+        Nullable(TimeZone("America/Port-au-Prince")),
+    )
+    @test isequal(
+        DateParser._tryparse(TimeZone, "z"),
+        Nullable(FixedTimeZone("UTC", 0)),
+    )
+    @test isequal(
+        DateParser._tryparse(TimeZone, "Etc/GMT+3"),
+        Nullable{TimeZone}(),
+    )
+    @test isequal(
+        DateParser._tryparse(TimeZone, "Etc/GMT+3", translation=mapping),
+        Nullable(mapping["Etc/GMT+3"]),
+    )
+    @test isequal(
+        DateParser._tryparse(TimeZone, "badzone"),
+        Nullable{TimeZone}(),
+    )
+end
+
+
+
 
 timezone = TimeZone("Europe/Warsaw")
 default_d = Date(1976, 7, 4)
@@ -24,56 +102,39 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 # MMYYYY is not supported because it will parse as 3 date tokens
 @test parse(Date, "102015", default=default_d) == Date(2015, 10, 20)
 
+@test parse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
+
 # tryparse
-@test get(tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos)) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
-@test isnull(tryparse(ZonedDateTime, "garbage", default=default_zdt))
-@test get(tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default_dt)) == DateTime(1994, 10, 13, 12, 10, 14)
-@test isnull(tryparse(DateTime, "garbage", default=default_dt))
-@test get(tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default_d)) == Date(1994, 10, 13)
-@test isnull(tryparse(Date, "garbage", default=default_d))
+@test isequal(
+    tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos),
+    Nullable(ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))),
+)
+@test isequal(
+    tryparse(ZonedDateTime, "garbage", default=default_zdt),
+    Nullable{ZonedDateTime}(),
+)
+@test isequal(
+    tryparse(DateTime, "Oct 13, 1994 12:10:14 UTC", default=default_dt),
+    Nullable(DateTime(1994, 10, 13, 12, 10, 14)),
+)
+@test isequal(
+    tryparse(DateTime, "garbage", default=default_dt),
+    Nullable{DateTime}(),
+)
+@test isequal(
+    tryparse(Date, "Oct 13, 1994 12:10:14 UTC", default=default_d),
+    Nullable(Date(1994, 10, 13)),
+)
+@test isequal(
+    tryparse(Date, "garbage", default=default_d),
+    Nullable{Date}(),
+)
 
-# tokenize
-@test DateParser.tokenize("⁇.éAû2") == ["⁇.", "éAû", "2"]
-@test DateParser.tokenize("1999 Feb 3 12:20:30.5") == ["1999", "Feb", "3", "12", ":", "20", ":", "30", ".", "5"]
-@test DateParser.tokenize("GMT+3") == ["GMT", "+", "3"]  # Note: ispunct('+') is false
 
-# convertyear
-@test DateParser.convertyear(10) == 2010
-@test DateParser.convertyear(95) == 1995
-@test DateParser.convertyear(49) == 2049
-@test DateParser.convertyear(50) == 1950
-@test DateParser.convertyear(10, 2075) == 2110
 
-# converthour
-@test DateParser.converthour(1, :am) == 1
-@test DateParser.converthour(1, :pm) == 13
-@test DateParser.converthour(12, :am) == 0
-@test DateParser.converthour(12, :pm) == 12
 
-# _tryparse {TimeZone}
-@test get(DateParser._tryparse(TimeZone, "Etc/GMT+3", translation=timezone_infos)).name == Symbol("GMT+3")
-@test get(DateParser._tryparse(TimeZone, "America/Winnipeg")).name == Symbol("America/Winnipeg")
-@test get(DateParser._tryparse(TimeZone, "MST7MDT")).name == Symbol("MST7MDT")
-@test get(DateParser._tryparse(TimeZone, "Asia/Ho_Chi_Minh")).name == Symbol("Asia/Ho_Chi_Minh")
-@test get(DateParser._tryparse(TimeZone, "America/North_Dakota/New_Salem")).name == Symbol("America/North_Dakota/New_Salem")
-@test get(DateParser._tryparse(TimeZone, "America/Port-au-Prince")).name == Symbol("America/Port-au-Prince")
-@test get(DateParser._tryparse(TimeZone, "z")).name == Symbol("UTC")
-@test isnull(DateParser._tryparse(TimeZone, "badzone"))
 
-# _tryparse {Month}
-@test get(DateParser._tryparse(Dates.Month, "january")).value == 1
-@test get(DateParser._tryparse(Dates.Month, "oct")).value == 10
-@test isnull(DateParser._tryparse(Dates.Month, "garbage"))
 
-# _tryparse {DayOfWeek}
-@test get(DateParser._tryparse(DateParser.DayOfWeek, "monday")).value == 1
-@test get(DateParser._tryparse(DateParser.DayOfWeek, "wed")).value == 3
-@test isnull(DateParser._tryparse(DateParser.DayOfWeek, "garbage"))
-
-# parsefractional
-@test DateParser.parsefractional("5") == 0.5
-@test DateParser.parsefractional("50") == 0.5
-@test DateParser.parsefractional("999") == 0.999
 
 # All code paths
 @test parse(ZonedDateTime, "", default=default_zdt) == default_zdt
