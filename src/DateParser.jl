@@ -9,6 +9,8 @@ import TimeZones: localtime
 # Re-export from Base with ZonedDateTime, DateTime, and Date
 export parse, tryparse
 
+include("tokens.jl")
+
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
 # https://labix.org/python-dateutil#head-a23e8ae0a661d77b89dfb3476f85b26f0b30349c
 
@@ -136,31 +138,42 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
     ymd = sizehint!(Int[], 3)  # year/month/day list
     monthindex = -1  # Index of a month string in ymd
 
-    tokens = tokenize(s)
+    t = Tokens(s)
     len = length(tokens)
     hint = :none
 
     i = 1
     while i <= len
+        used = 0
+        decimal_offset = 0
+
         tokenlength = length(tokens[i])
         if isdigit(tokens[i])
+
+            decimal = 0.0
+            if match(tokens, [".", isdigit], i+1)
+                decimal = parse_decimal(tokens[i+2])
+                decimal_offset += 2
+            end
+
             if tokenlength == 6
                 # YYMMDD or HHMMSS[.ss]
-                if length(ymd) != 0 ||
-                        (i+2 <= len && tokens[i+1] == "." && isdigit(tokens[i+2]))
+                if length(ymd) != 0 || decimal != 0
                     # 19990101T235959[.59]
                     res.hour = tokens[i][1:2]
                     res.minute = tokens[i][3:4]
                     res.second = tokens[i][5:6]
-                    if i+2 <= len && tokens[i+1] == "." && isdigit(tokens[i+2])
-                        temp = round(Int, 1000 * parse_decimal(tokens[i+2]))
-                        res.millisecond = temp
-                        i += 2
+                    used += 1
+
+                    if decimal != 0
+                        res.millisecond = round(Int, 1000 * decimal)
+                        used += decimal_offset
                     end
                 else
                     push!(ymd, parse(Int, tokens[i][1:2]))
                     push!(ymd, parse(Int, tokens[i][3:4]))
                     push!(ymd, parse(Int, tokens[i][5:end]))
+                    used += 1
                 end
             elseif tokenlength in (8, 12, 14)
                 # YYYYMMDD[hhmm[ss]]
@@ -174,27 +187,25 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
                         res.second = tokens[i][13:14]
                     end
                 end
+
+                used += 1
             elseif tokenlength == 9
                 # HHMMSS[mil]
                 res.hour = tokens[i][1:2]
                 res.minute = tokens[i][3:4]
                 res.second = tokens[i][5:6]
                 res.millisecond = tokens[i][7:9]
-            elseif (hint != :none) ||
-                (i+1 <= len && haskey(HMS[locale], lowercase(tokens[i+1]))) ||
-                (i+3 <= len && tokens[i+1] == "." && isdigit(tokens[i+2]) && haskey(HMS[locale], lowercase(tokens[i+3])))
+                used += 1
+
+            elseif hint != :none || match(tokens, [keys(HMS[locale])], i + decimal_offset + 1, case_insenstive=true)
                 # HH[ ]h or MM[ ]m or SS[.ss][ ]s
 
                 value = parse(Int, tokens[i])
-                decimal = 0.0
-                if i+2 <= len && tokens[i+1] == "."
-                    decimal = parse_decimal(tokens[i+2])
-                    i += 2
-                end
+                used += 1 + (decimal != 0 ? 2 : 0)
 
-                if i+1 <= len && haskey(HMS[locale], lowercase(tokens[i+1]))
-                    label = HMS[locale][lowercase(tokens[i+1])]
-                    i += 1
+                if match(tokens, [keys(HMS[locale])], i + decimal_offset + 1, case_insenstive=true)
+                    label = HMS[locale][lowercase(tokens[i + decimal_offset + 1])]
+                    used += 1
                 else
                     label = hint
                 end
@@ -218,25 +229,26 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
                     end
                     hint == :none
                 end
-            elseif i+2 <= len && tokens[i+1] == ":" && isdigit(tokens[i+2])
+
+            elseif match(tokens, [":", isdigit], i + 1)
                 # HH:MM[:SS[.ss]]
                 res.hour = tokens[i]
                 res.minute = tokens[i+2]
-                i += 2
+                used += 3
 
-                if i+2 <= len && tokens[i+1] == "." && isdigit(tokens[i+2])
-                    res.second = round(Int, 60 * parse_decimal(tokens[i+2]))
-                    i += 2
-                elseif i+2 <= len && tokens[i+1] == ":" && isdigit(tokens[i+2])
+                if match(tokens, [".", isdigit], i + 3)
+                    res.second = round(Int, 60 * parse_decimal(tokens[i+4]))
+                    used += 2
+                elseif match(tokens, [":", isdigit], i + 3)
                     res.second = tokens[i+2]
-                    i += 2
+                    used += 2
 
-                    if i+2 <= len && tokens[i+1] == "." && isdigit(tokens[i+2])
-                        res.millisecond = round(Int, 1000 * parse_decimal(tokens[i+2]))
-                        i += 2
+                    if match(tokens, [".", isdigit], i + 5)
+                        res.millisecond = round(Int, 1000 * parse_decimal(tokens[i+6]))
+                        used += 2
                     end
                 end
-            elseif i+1 <= len && tokens[i+1] in ("-","/",".")
+            elseif match(tokens, [("-","/",".")], i+1)
                 push!(ymd, parse(Int, tokens[i]))
 
                 date_seperator = tokens[i+1]
@@ -571,40 +583,6 @@ function converthour(hour::Integer, ampm::Symbol)
     return hour
 end
 
-function tokenize{Str<:AbstractString}(input::Str)
-    tokens = Str[]
-    token = sizehint!(Char[], 10)
 
-    # Note: A regular expression can handle almost all of this task
-    # with the exception of identifying Unicode punctuation.
-    state = last_state = :none
-    for c in input
-        if isspace(c)
-            state = :none
-        elseif isdigit(c)
-            state = :number
-        elseif isalpha(c)
-            state = :word
-        else
-            state = :other
-        end
-
-        if state != :none
-            if state != last_state && !isempty(token)
-                push!(tokens, Str(token))
-                empty!(token)
-            end
-
-            push!(token, c)
-        end
-
-        last_state = state
-    end
-
-    # Token will only be empty here if the entire input was whitespace
-    !isempty(token) && push!(tokens, Str(token))
-
-    return tokens
-end
 
 end # module

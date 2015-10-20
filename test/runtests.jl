@@ -6,10 +6,7 @@ using TimeZones
 
 import DateParser: DayOfWeek
 
-# Break apart a string into its various tokens
-@test DateParser.tokenize("⁇.éAû2") == ["⁇.", "éAû", "2"]
-@test DateParser.tokenize("1999 Feb 3 12:20:30.5") == ["1999", "Feb", "3", "12", ":", "20", ":", "30", ".", "5"]
-@test DateParser.tokenize("GMT+3") == ["GMT", "+", "3"]  # Note: ispunct('+') is false
+include("tokens.jl")
 
 @test DateParser.convertyear(10) == 2010
 @test DateParser.convertyear(95) == 1995
