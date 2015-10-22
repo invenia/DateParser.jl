@@ -52,7 +52,7 @@ const JUMP = [
     "nd", "rd", "th", "the",
 ]
 const PERTAIN = ["of",]
-const UTCZONE = ["utc", "gmt", "z",]
+const UTCZONE = ["UTC", "GMT", "Z"]
 
 function Base.tryparse{T<:TimeType}(::Type{T}, s::AbstractString; args...)
     try
@@ -127,7 +127,7 @@ type Parts
 end
 Base.convert{T}(::Type{Nullable{T}}, x::Any) = Nullable{T}(T(x))
 
-function _parsedate(s::AbstractString; fuzzy::Bool=false,
+function _parsedate(str::AbstractString; fuzzy::Bool=false,
     timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
@@ -138,127 +138,131 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
     ymd = sizehint!(Int[], 3)  # year/month/day list
     monthindex = -1  # Index of a month string in ymd
 
-    tokens = Tokens(s)
-    len = length(tokens)
     hint = :none
 
-    i = 1
-    while i <= len
-        used = 0
-        decimal_offset = 0
+    const hms_regex = Regex("\\G(?:\\.\\d+)?\\s*(?<key>" * regex_str(keys(HMS[locale])) * ")(?=[\\W\\d]|\$)", "i")
+    const ampm_regex = Regex("\\G\\s*(?<key>" * regex_str(keys(AMPM[locale])) * ")(?=[\\W\\d]|\$)", "i")
+    const pertain_regex = Regex("\\G\\s*(?<word>" * regex_str(PERTAIN) * ")\\s*(?<year>\\d+)", "i")
+    const skip_regex = Regex("\\G\\s*(" * regex_str(JUMP) * ")(?=[\\W\\d]|\$)", "i")
 
-        tokenlength = length(tokens[i])
-        if isdigit(tokens[i])
+    println(hms_regex)
+
+    index = last_index = start(str)
+    while index <= endof(str)
+        if (m = match(r"\G(\d+)", str, index)) != nothing
             # The digit is expected to be stored appropriately
-            digit = tokens[i]
-            i += 1
+            digit = m[1]
+            index = nextind(str, index + endof(m.match) - 1)
 
-            # Look ahead for a decimal
-            decimal = ""
-            m = match(tokens, ".", :digit, offset=i)
-            if m != nothing
-                decimal = m[end]
-                decimal_offset += length(m)
-            end
+            println("$index, $digit")
 
-            if tokenlength == 6
+            if length(digit) == 6
                 # YYMMDD or HHMMSS[.ss]
-                values = map(d -> parse(Int, d), (digit[1:2], digit[3:4], digit[5:6]))
+                values = map(d -> parse(Int, d), [digit[1:2], digit[3:4], digit[5:6]])
+                m = match(r"\G\.(\d+)", str, index)
 
-                if decimal == "" && isempty(ymd)
-                    push!(ymd, values...)
-                else
+                println("length == 6: $digit, \"$(str[index:end])\"")
+
+                if m != nothing || !isempty(ymd)
                     # 19990101T235959[.59]
                     res.hour, res.minute, res.second = values
 
-                    if decimal != ""
-                        res.millisecond = parse_as_decimal(decimal, 1000)
-                        i += decimal_offset
+                    if m != nothing
+                        res.millisecond = parse_as_decimal(m[1], 1000)
+                        index = nextind(str, index + endof(m.match) - 1)
                     end
+                else
+                    push!(ymd, values...)
                 end
 
-            elseif tokenlength in (8, 12, 14)
+            elseif length(digit) in (8, 12, 14)
                 # YYYYMMDD[hhmm[ss]]
-                push!(ymd, map(d -> parse(Int, d), (digit[1:4], digit[5:6], digit[7:8])))
+                values = map(d -> parse(Int, d), [digit[1:4], digit[5:6], digit[7:8]])
+                push!(ymd, values...)
 
-                if tokenlength > 8
+                if length(digit) > 8
                     res.hour = digit[9:10]
                     res.minute = digit[11:12]
-                    if tokenlength > 12
+                    if length(digit) > 12
                         res.second = digit[13:14]
                     end
                 end
 
-            elseif tokenlength == 9
+            elseif length(digit) == 9
                 # HHMMSS[mil]
                 res.hour = digit[1:2]
                 res.minute = digit[3:4]
                 res.second = digit[5:6]
                 res.millisecond = digit[7:9]
 
-            elseif (m = match(tokens, keys(HMS[locale]), offset=i + decimal_offset, case_insenstive=true) != nothing) || hint != :none
+            elseif (m = match(hms_regex, str, index)) != nothing || hint != :none
                 # HH[.MM][ ]h or MM[.SS][ ]m or SS[.ss][ ]s
 
                 value = parse(Int, digit)
-                i += decimal_offset
+
+                # Grab decimal. Note that we still want to get the decimal if we entered
+                # when hint != :none
+                decimal_match = match(r"\G\.(\d+)", str, index)
+                decimal = decimal_match != nothing ? decimal_match[1] : ""
 
                 if m != nothing
-                    label = HMS[locale][lowercase(m[end])]
-                    i += length(m)
+                    label = HMS[locale][lowercase(m["key"])]
+                    index = nextind(str, index + endof(m.match) - 1)
                 else
                     label = hint
                 end
 
                 if label == :hour
                     res.hour = value
-                    if decimal != 0
-
+                    if decimal != ""
                         res.minute = get(res.minute, 0) + Minute(parse_as_decimal(decimal, 60))
                     end
                     hint = :minute
                 elseif label == :minute
                     res.minute = value
-                    if decimal != 0
+                    if decimal != ""
                         res.second = get(res.second, 0) + Second(parse_as_decimal(decimal, 60))
                     end
                     hint = :second
                 elseif label == :second
                     res.second = value
-                    if decimal != 0
+                    if decimal != ""
                         res.millisecond = get(res.millisecond, 0) + Millisecond(parse_as_decimal(decimal, 1000))
                     end
                     hint == :none
                 end
 
-            elseif (m = match(tokens, ":", :digit, offset=i) != nothing)
+            elseif (m = match(r"\G:(\d+)(?:\:(\d+))?(?:\.(\d+))?", str, index)) != nothing
                 # HH:MM[:SS[.ss]]
                 res.hour = digit
-                res.minute = m[end]
-                i += length(m)
 
-                if (m = match(tokens, ".", :digit, offset=i) != nothing)
-                    res.second = parse_as_decimal(m[end], 60)
-                    i += length(m)
+                println("HH:MM")
 
-                elseif (m = match(tokens, ":", :digit, offset=i) != nothing)
-                    res.second = m[end]
-                    i += length(m)
+                minute, second, decimal = m.captures
+                index = nextind(str, index + endof(m.match) - 1)
 
-                    if (m = match(tokens, ".", :digit, offset=i) != nothing)
-                        res.millisecond = parse_as_decimal(m[end], 1000)
-                        i += length(m)
+                res.minute = minute
+
+                println("$digit, $minute, $second, $millisecond")
+
+                if second != nothing
+                    res.second = second
+                    if decimal != nothing
+                        res.millisecond = parse_as_decimal(decimal, 1000)
                     end
+                elseif decimal != nothing
+                    res.second = parse_as_decimal(decimal, 60)
                 end
 
-            elseif (m = match(tokens, ["-", "/", "."], offset=i)) != nothing
+            elseif (m = match(r"\G([-/.])(?|(\d+)(?(1)\1(\d+|\S+))?|((?:(?!\1)\S)+)(?(1)\1(\d+))?)", str, index)) != nothing
+                # 1998-02-18, 1999/Feb/18, 1999.18.02
+                println("YYYY-MM-DD")
+
                 push!(ymd, parse(Int, digit))
-                i += 1
+                index = nextind(str, index + endof(m.match) - 1)
 
-                date_seperator = m[end]
-                while i + 2 <= len
-                    seperator, token = tokens[i:i+1]
-                    seperator != date_seperator && break
-
+                for token in m.captures[2:end]
+                    token != nothing || continue
                     if isdigit(token)
                         push!(ymd, parse(Int, token))
                     else
@@ -268,22 +272,21 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
                             monthindex = length(ymd)
                         end
                     end
-
-                    i += 2
                 end
 
-            elseif (m = match(tokens, keys(AMPM[locale]), offset=i, case_insensitive=true) != nothing)
+            elseif (m = match(ampm_regex, str, index)) != nothing
                 # 12am
                 hour = parse(Int, digit)
-                res.hour = converthour(hour, AMPM[locale][lowercase(m[end])])
-                i += length(m)
+                res.hour = converthour(hour, AMPM[locale][lowercase(m["key"])])
+                index = nextind(str, index + endof(m.match) - 1)
 
             else
+                println("Fallback")
                 value = parse(Int, digit)
 
                 if length(ymd) < 3
                     push!(ymd, value)
-                elseif tokenlength <= 2
+                elseif length(digit) <= 2
                     if isnull(res.hour)
                         res.hour = value
                     elseif isnull(res.minute)
@@ -295,9 +298,9 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
                     elseif !fuzzy
                         error("Failed to parse date")
                     end
-                elseif tokenlength == 3 && isnull(res.millisecond)
+                elseif length(digit) == 3 && isnull(res.millisecond)
                     res.millisecond = value
-                elseif tokenlength == 4 && isnull(res.hour) && isnull(res.minute)
+                elseif length(digit) == 4 && isnull(res.hour) && isnull(res.minute)
                     res.hour = digit[1:2]
                     res.minute = digit[3:4]
                 elseif !fuzzy
@@ -305,60 +308,60 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
                 end
             end
 
+        elseif (ext = extract_dayofweek(str, index, locale)) != nothing
+            res.dayofweek, index = ext
+
+        elseif (ext = extract_month(str, index, locale)) != nothing
+            # Month name
+            month, index = ext
+
+            push!(ymd, month)
+            monthindex = length(ymd)
+
+            if (m = match(r"\G([-/.])(\d+)(?(1)\1(\d+))", str, index)) != nothing
+                # Jan-01[-99]
+                for token in m.captures[2:end]
+                    push!(ymd, parse(Int, token))
+                end
+
+                index = nextind(str, index + endof(m.match) - 1)
+            elseif (m = match(pertain_regex, str, index)) != nothing
+                # Jan of 01
+                # In this case "01" is clearly year. Convert it here to be unambiguous
+                push!(ymd, convertyear(parse(Int, m["year"])))
+                index = nextind(str, index + endof(m.match) - 1)
+            end
+
+        elseif (m = match(ampm_regex, str, index)) != nothing
+            # am/pm
+            isnull(res.hour) && error("Expected to find hour prior to the meridiem")
+            meridiem = AMPM[locale][lowercase(m["key"])]
+            res.hour = converthour(get(res.hour).value, meridiem)
+            index = nextind(str, index + endof(m.match) - 1)
+
+        elseif isnull(res.timezone) && (ext = extract_tz(str, index, timezone_infos)) != nothing
+            res.timezone, index = ext
+
         else
-            token = tokens[i]
+            m = match(skip_regex, str, index)
 
-            # Token is not a number
-            w = _tryparse(DayOfWeek, lowercase(token), locale=locale)
-            m = _tryparse(Month, lowercase(token), locale=locale)
-
-            if !isnull(w)
-                # Weekday
-                res.dayofweek = get(w)
-                i += 1
-
-            elseif !isnull(m)
-                # Month name
-                push!(ymd, get(m))
-                monthindex = length(ymd)
-                i += 1
-
-                if (m = match(tokens, ["-", "/", "."], offset=i) != nothing)
-                    # Jan-01[-99]
-                    date_seperator = m[end]
-                    while i+2 <= len
-                        seperator, token = tokens[i:i+1]
-                        seperator != date_seperator && break
-                        push!(ymd, parse(Int, token))
-                        i += 2
-                    end
-                elseif (m = match(tokens, PERTAIN, :digit, offset=i) != nothing)
-                    # Jan of 01
-                    # In this case "01" is clearly year. Convert it here to be unambiguous
-                    push!(ymd, convertyear(parse(Int, m[end])))
-                    i += length(m)
-                end
-            elseif (m = match(tokens, AMPM[locale], offset=i, case_insensitive=true) != nothing)
-                # am/pm
-                isnull(res.hour) && error("Failed to parse date")
-                meridiem = AMPM[locale][lowercase(m[end])]
-                res.hour = converthour(get(res.hour).value, meridiem)
-                i += length(m)
-
-            elseif (m = match(tokens, ("+", "-"), :digit, offset=i) != nothing && isnull(res.tzoffset))
-                resi = token_parse_tzoffset!(res, tokens, i)
+            if m != nothing
+                println("Skipping: \"$(m.match)\"")
+                index = nextind(str, index + endof(m.match) - 1)
+            elseif !fuzzy
+                println("$(str[index:end])")
+                error("Failed to parse date")
             else
-                tz, i = tryparse_token_tz(tokens, i, timezone_infos)
-
-                if isnull(tz)
-                    if !(lowercase(token) in JUMP) && !fuzzy
-                        error("Failed to parse date")
-                    else
-                        i += 1
-                    end
-                end
+                index = nextind(str, index)
             end
         end
+
+        println("$index \"$(str[index:end])\"")
+
+        if last_index == index
+            error("Something has gone wrong: $res, $ymd")
+        end
+        last_index = index
     end
 
     processymd!(res, ymd, monthindex=monthindex, yearfirst=yearfirst, dayfirst=dayfirst)
@@ -371,102 +374,119 @@ function _parsedate(s::AbstractString; fuzzy::Bool=false,
     return res
 end
 
-function token_parse_tzoffset(tokens::Array{AbstractString}, i::Integer)
-    # Numbered timzone
-    sign = tokens[i] == "+" ? 1 : -1
-    start = i
-    i += 1
-
-    tokenlength = length(tokens[i])
-    h = mi = 0
-    if tokenlength == 4
-        # -0300
-        values =
-        h, mi = parse(Int, tokens[i][1:2]), parse(Int, tokens[i][3:4])
-    elseif i+2 <= length(tokens) && tokens[i+1] == ":" && isdigit(tokens[i+2])
-        # -03:00
-        h, mi = parse(Int, tokens[i]), parse(Int, tokens[i+2])
-        i += 2
-    elseif tokenlength <= 2
-        # -[0]3
-        h = parse(Int, tokens[i])
-    else
-        error("Failed to read timezone offset")
-    end
-    h < 24 || error("Hour: $h out of range (0:23)")
-    mi < 60 || error("Minute: $mi out of range (0:59)")
-    offset = sign * (h * 3600 + mi * 60)
-    name = join(tokens[start:i], "")
-    i += 1
-
-    return offset, name, i
+type Extract
+    result::Any
+    index::Integer
 end
 
-function tryparse_token_tz(tokens::Array{AbstractString}, i::Integer, mapping::Dict{AbstractString,TimeZone}=Dict())
-    len = length(tokens)
-    oldindex = i
-    inbrackets = false
-    offset = nothing
+Base.start(iter::Extract) = 1
+Base.next(iter::Extract, state::Integer) = iter[state], state + 1
+Base.done(iter::Extract, state::Integer) = state > 2
 
-    if i <= len && tokens[i] == "("
-        inbrackets = true
-        i += 1
+function getindex(ext::Extract, index::Integer)
+    if index == 1
+        return ext.result
+    elseif index == 2
+        return ext.index
+    else
+        throw(BoundsError(ext, index))
+    end
+end
+
+
+function extract_dayofweek(str::AbstractString, index::Integer, locale::AbstractString="english")
+    dow_words = [
+        collect(keys(DAYOFWEEKTOVALUE[locale]));
+        collect(keys(DAYOFWEEKABBRTOVALUE[locale]))
+    ]
+    dow_regex = Regex("\\G\\s*(?<dow>" * regex_str(dow_words) * ")(?=[\\W\\d]|\$)", "i")
+
+    m = match(dow_regex, str, index)
+    if m != nothing
+        name = lowercase(m["dow"])
+        dow = get(DAYOFWEEKTOVALUE[locale], name, get(DAYOFWEEKABBRTOVALUE[locale], name, nothing))
+        index = nextind(str, index + endof(m.match) - 1)
+        return Extract(dow, index)
     end
 
-    start, finish = i, i
+    return nothing
+end
 
-    if isalpha(tokens[i])
-        i += 1
+function extract_month(str::AbstractString, index::Integer, locale::AbstractString="english")
+    words = [
+        collect(keys(MONTHTOVALUE[locale]));
+        collect(keys(MONTHABBRTOVALUE[locale]))
+    ]
+    regex = Regex("\\G\\s*(?<word>" * regex_str(words) * ")(?=[\\W\\d]|\$)", "i")
+
+    m = match(regex, str, index)
+    if m != nothing
+        name = lowercase(m["word"])
+        month = get(MONTHTOVALUE[locale], name, get(MONTHABBRTOVALUE[locale], name, nothing))
+        index = nextind(str, index + endof(m.match) - 1)
+        return Extract(month, index)
     end
 
-    # Check for something like GMT+3, or BRST+3
-    if (m = match(tokens, ["+", "-"], :digit, offset=i) != nothing)
-        offset, name, i = token_parse_tzoffset(tokens, i)
-        finish = i - 1
+    return nothing
+end
 
-        if !inbrackets && (m = match(tokens, "(", offset=i) != nothing)
-            i += length(m)
+function extract_tz(str::AbstractString, index::Integer, translation::Dict{AbstractString,TimeZone}=Dict{AbstractString,TimeZone}())
+    name = fixed_name = ""
+    offset = 0
 
-            start = i
-            while (m = match(tokens, [:alpha, :digit, "/", "+", "-", "_"], offset=i) != nothing)
-                finish = i
-                i += length(m)
-            end
+    # Numbered timezone: -0300, -[0]3:00, -[0]3
+    m = match(r"\G\s*((?:(?<=\s)[A-Z]+)?([+-])(?|(\d{2})(\d{2})|(\d{1,2})(?:\:(\d{2}))?))\b", str, index)
+    if m != nothing
+        fixed_name = m.captures[1]
+        sign = m.captures[2] == "+" ? 1 : -1
+        hour, minute = map(d -> d != nothing ? parse(Int, d) : 0, m.captures[3:end])
+        hour < 24 && minute < 60 || error("Timezone offset out of range: $(m.match)")
 
-            if (m = match(tokens, ")", offset=i) != nothing)
-                i += length(m)
-            else
-                error("Missing ending bracket")
+
+        offset = sign * (hour * 3600 + minute * 60)
+        index = nextind(str, index + endof(m.match) - 1)
+
+        # Named offset: (Europe/Warsaw)
+        if index <= endof(str)
+
+            m = match(r"\G\s*\((?<name>[\p{L}/_+-]*)\)", str, index)
+            if m != nothing
+                name = m["name"]
+                index = nextind(str, index + endof(m.match) - 1)
             end
         end
-
     else
-        while (m = match(tokens, [:alpha, :digit, "/", "+", "-", "_"], offset=i) != nothing)
-            finish = i
-            i += length(m)
+        # Named timezones like: Europe/Warsaw or Etc/GMT+3
+        m = match(r"\G\s*(?<name>[\p{L}\d/_+-]*)", str, index)
+        if m != nothing
+            name = m["name"]
+            index = nextind(str, index + endof(m.match) - 1)
         end
     end
 
-    name = join(tokens[start:finish], "")
+    @show name, fixed_name, offset
 
-    if inbrackets && (m = match(tokens, ")", offset=i) != nothing)
-        i += length(m)
-    else
-        error("Missing ending bracket")
+    if haskey(translation, name)
+        tz = translation[name]
+        return Extract(tz, index)
+    elseif name in TimeZones.timezone_names()
+        tz = TimeZone(name)
+        return Extract(tz, index)
+    elseif name in UTCZONE
+        tz = FixedTimeZone("UTC", 0)
+        return Extract(tz, index)
+    elseif fixed_name != ""
+        tz = FixedTimeZone(name != "" ? name : fixed_name, offset)
+        return Extract(tz, index)
     end
 
-    # Prefer translation table
-    tz = _tryparse(TimeZone, name, translation=timezone_infos)
+    return nothing
+end
 
-    if isnull(tz) && offset != nothing
-        tz = Nullable{TimeZone}(FixedTimeZone(name, offset))
-    end
-
-    if isnull(tz)
-        i = old_index
-    end
-
-    return tz, i
+function regex_str(iter)
+    # Note: Collecting iterator as sort(::KeyIterator) doesn't exist
+    # sort(collect(iter), by=length, rev=true)
+    join(["\\Q$el\\E" for el in iter], "|")
 end
 
 function processymd!(res::Parts, ymd::Array{Int};
@@ -553,7 +573,7 @@ function parse_as_decimal(s::AbstractString)
     # parse(Float64, string(".", s))
 end
 
-function parse_as_decimal(s::AbstractString, multiplier::Integer=1)
+function parse_as_decimal(s::AbstractString, multiplier::Integer)
     round(Int, parse_as_decimal(s) * multiplier)
 end
 

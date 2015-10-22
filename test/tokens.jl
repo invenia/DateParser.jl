@@ -5,10 +5,10 @@ import DateParser: Tokens, match
 @test Tokens("1999 Feb 3 12:20:30.5").tokens == ["1999", "", "Feb", "", "3", "", "12", ":", "20", ":", "30", ".", "5"]
 
 t = Tokens("1999 Feb 3 12:20:30.5")
-@test match(t, :digit, :alpha, :digit) != nothing                   # "1999", "Feb", "3"
-@test match(t, "1999", "Feb", "3") != nothing                       # "1999", "Feb", "3"
-@test match(t, :alpha, :digit, :digit, offset=2) != nothing         # "Feb", "3" "12"
-@test match(t, :digit, :space, :alpha, whitespace=true) != nothing  # "1999", "", "Feb"
-@test match(t, :digit, ".", :digit, offset=8) != nothing            # "30", ".", "5"
+# @test match(t, :digit, :alpha, :digit) != nothing                   # "1999", "Feb", "3"
+# @test match(t, "1999", "Feb", "3") != nothing                       # "1999", "Feb", "3"
+# @test match(t, :alpha, :digit, :digit, offset=2) != nothing         # "Feb", "3" "12"
+# @test match(t, :digit, :space, :alpha, whitespace=true) != nothing  # "1999", "", "Feb"
+# @test match(t, :digit, ".", :digit, offset=8) != nothing            # "30", ".", "5"
 
-@test match(t, :digit, ["February"; "Feb"], :digit)
+# @test match(t, :digit, ["February"; "Feb"], :digit)
