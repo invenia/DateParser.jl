@@ -4,9 +4,7 @@ using Base.Test
 using Base.Dates
 using TimeZones
 
-import DateParser: DayOfWeek
-
-include("tokens.jl")
+include("processymd.jl")
 
 @test DateParser.convertyear(10) == 2010
 @test DateParser.convertyear(95) == 1995
@@ -328,7 +326,7 @@ date = DateTime(1976, 7, 4)
 @test parse(DateTime, "19760704", default=default_dt) == date
 
 @test parse(DateTime, "0:01:02", default=default_dt) == DateTime(1976, 7, 4, 0, 1, 2)
-@test isnull(tryparse(DateTime, "0 1 2", default=default_dt))  # month of 0 not valid
+@test parse(DateTime, "0 1 2") == DateTime(2000, 1, 2)
 @test parse(DateTime, "12h 59.00s am", default=default_dt) == DateTime(1976, 7, 4, 0, 0, 59)
 @test parse(DateTime, "59s", default=default_dt) == DateTime(1976, 7, 4, 0, 0, 59)
 @test parse(DateTime, "1 m 2s", default=default_dt) == DateTime(1976, 7, 4, 0, 1, 2)

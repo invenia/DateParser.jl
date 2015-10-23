@@ -49,9 +49,10 @@ const JUMP = [
 const PERTAIN = ["of",]
 const UTC_ZONES = ["UTC", "GMT", "Z"]
 
-const YEAR_TYPE = 0x01
-const MONTH_TYPE = 0x02
-const DAY_TYPE = 0x04
+const YEAR = UInt8(0x01)
+const MONTH = UInt8(0x02)
+const DAY = UInt8(0x04)
+const ALL = YEAR | MONTH | DAY
 
 
 function Base.tryparse{T<:TimeType}(::Type{T}, s::AbstractString; args...)
@@ -135,8 +136,9 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
 )
     res = Components()
 
-    ymd = sizehint!(Int[], 3)  # year/month/day list
-    monthindex = -1  # Index of a month string in ymd
+    # Date (year, month, day) information
+    date_values = sizehint!(Int[], 3)
+    date_types = sizehint!(UInt8[], 3)
 
     hint = :none
 
@@ -144,8 +146,6 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
     const ampm_regex = Regex("\\G\\s*(?<key>" * regex_str(keys(AMPM[locale])) * ")(?=[\\W\\d]|\$)", "i")
     const pertain_regex = Regex("\\G\\s*(?<word>" * regex_str(PERTAIN) * ")\\s*(?<year>\\d+)", "i")
     const skip_regex = Regex("\\G\\s*(" * regex_str(JUMP) * ")(?=[\\W\\d]|\$)", "i")
-
-    println(hms_regex)
 
     index = last_index = start(str)
     while index <= endof(str)
@@ -163,7 +163,7 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
 
                 println("length == 6: $digit, \"$(str[index:end])\"")
 
-                if m != nothing || !isempty(ymd)
+                if m != nothing || !isempty(date_values)
                     # 19990101T235959[.59]
                     res.hour, res.minute, res.second = values
 
@@ -172,13 +172,15 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
                         index = nextind(str, index + endof(m.match) - 1)
                     end
                 else
-                    push!(ymd, values...)
+                    push!(date_values, values...)
+                    push!(date_types, fill(ALL, length(values))...)
                 end
 
             elseif length(digit) in (8, 12, 14)
                 # YYYYMMDD[hhmm[ss]]
                 values = map(d -> parse(Int, d), [digit[1:4], digit[5:6], digit[7:8]])
-                push!(ymd, values...)
+                push!(date_values, values...)
+                push!(date_types, fill(ALL, length(values))...)
 
                 if length(digit) > 8
                     res.hour = digit[9:10]
@@ -258,17 +260,19 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
                 # 1998-02-18, 1999/Feb/18, 1999.18.02
                 println("YYYY-MM-DD")
 
-                push!(ymd, parse(Int, digit))
+                push!(date_values, parse(Int, digit))
+                push!(date_types, ALL)
                 index = nextind(str, index + endof(m.match) - 1)
 
                 for token in m.captures[2:end]
                     token != nothing || continue
                     if isdigit(token)
-                        push!(ymd, parse(Int, token))
+                        push!(date_values, parse(Int, token))
+                        push!(date_types, ALL)
                     elseif (ext = extract_month(token, locale=locale)) != nothing
                         month, _ = ext
-                        push!(ymd, month)
-                        monthindex = length(ymd)
+                        push!(date_values, month)
+                        push!(date_types, MONTH)
                     end
                 end
 
@@ -282,8 +286,9 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
                 println("Fallback")
                 value = parse(Int, digit)
 
-                if length(ymd) < 3
-                    push!(ymd, value)
+                if length(date_values) < 3
+                    push!(date_values, value)
+                    push!(date_types, ALL)
                 elseif length(digit) <= 2
                     if isnull(res.hour)
                         res.hour = value
@@ -313,20 +318,21 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
             # Month name
             month, index = ext
 
-            push!(ymd, month)
-            monthindex = length(ymd)
+            push!(date_values, month)
+            push!(date_types, MONTH)
 
             if (m = match(r"\G([-/.])(\d+)(?(1)\1(\d+))", str, index)) != nothing
                 # Jan-01[-99]
                 for token in m.captures[2:end]
-                    push!(ymd, parse(Int, token))
+                    push!(date_values, parse(Int, token))
+                    push!(date_types, ALL)
                 end
 
                 index = nextind(str, index + endof(m.match) - 1)
             elseif (m = match(pertain_regex, str, index)) != nothing
-                # Jan of 01
-                # In this case "01" is clearly year. Convert it here to be unambiguous
-                push!(ymd, convertyear(parse(Int, m["year"])))
+                # "Jan of 01": 01 is clearly the year
+                push!(date_values, parse(Int, m["year"]))
+                push!(date_types, YEAR)
                 index = nextind(str, index + endof(m.match) - 1)
             end
 
@@ -357,12 +363,31 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
         println("$index \"$(str[index:end])\"")
 
         if last_index == index
-            error("Something has gone wrong: $res, $ymd")
+            error("Something has gone wrong: $res, $date_values")
         end
         last_index = index
     end
 
-    processymd!(res, ymd, monthindex=monthindex, yearfirst=yearfirst, dayfirst=dayfirst)
+    ymd = nothing
+    if yearfirst && ymd == nothing
+        mask = [YEAR; fill(ALL, length(date_types) - 1)]
+        ymd = processymd(date_values, date_types & mask)
+    end
+
+    if dayfirst && ymd == nothing
+        mask = [DAY; fill(ALL, length(date_types) - 1)]
+        ymd = processymd(date_values, date_types & mask)
+    end
+
+    if ymd == nothing
+        ymd = processymd(date_values, date_types)
+    end
+
+    if ymd != nothing
+        year, month, day = ymd
+        year != nothing && (year = convertyear(year))
+        res.year, res.month, res.day = year, month, day
+    end
 
     return res
 end
@@ -462,80 +487,64 @@ function regex_str(iter)
     join(["\\Q$el\\E" for el in iter], "|")
 end
 
-function processymd!(res::Components, ymd::Array{Int};
-        monthindex=-1, yearfirst=false, dayfirst=false
-)
-    # Process year/month/day
-    len_ymd = length(ymd)
+function processymd{T<:Integer}(values::Array{T}, types::Array{UInt8})
+    year = nothing
+    month = nothing
+    day = nothing
 
-    if len_ymd > 3
-        # More than three members!?
-        error("Failed to parse date")
-    elseif len_ymd == 1 || (monthindex != -1 && len_ymd == 2)
-        # One member, or two members with a month string
-        if monthindex != -1
-            res.month = ymd[monthindex]
-            deleteat!(ymd, monthindex)
+    len = length(values)
+    len > 3 && throw(DomainError("Too many values provided for a Date"))
+    len != length(types) && throw(DimensionMismatch("values and types are not the same length"))
+
+    types = copy(types)
+    for i in eachindex(values)
+        1 <= values[i] <= 12 || (types[i] &= ~MONTH)
+        1 <= values[i] <= 31 || (types[i] &= ~DAY)
+    end
+
+    ismatch = (a, b) -> all(el -> el != 0, a & b)
+    if len == 1
+        if ismatch(types, [DAY])
+            day, = values
+        elseif ismatch(types, [MONTH])
+            month, = values
+        elseif ismatch(types, [YEAR])
+            year, = values
         end
-        if len_ymd > 1 || monthindex == -1
-            if ymd[1] > 31
-                res.year = ymd[1]
-            else
-                res.day = ymd[1]
-            end
+    elseif len == 2
+        if ismatch(types, [MONTH, DAY])
+            month, day = values
+        elseif ismatch(types, [DAY, MONTH])
+            day, month = values
+        elseif ismatch(types, [YEAR, MONTH])
+            year, month = values
+        elseif ismatch(types, [MONTH, YEAR])
+            month, year = values
+        elseif ismatch(types, [YEAR, DAY])
+            year, day = values
+        elseif ismatch(types, [DAY, YEAR])
+            day, year = values
         end
-    elseif len_ymd == 2
-        # Two members with numbers
-        if ymd[1] > 31
-            # 99-01
-            res.year, res.month = ymd
-        elseif ymd[2] > 31
-            # 01-99
-            res.month, res.year = ymd
-        elseif dayfirst && ymd[2] <= 12
-            # 13-01
-            res.day, res.month = ymd
-        else
-            # 01-13
-            res.month, res.day = ymd
-        end
-    elseif len_ymd == 3
-        # Three members
-        if monthindex == 1
-            res.month, res.day, res.year = ymd
-        elseif monthindex == 2
-            if ymd[1] > 31 || (yearfirst && ymd[3] <= 31)
-                # 99-Jan-01
-                res.year, res.month, res.day = ymd
-            else
-                # 01-Jan-01
-                # Give precendence to day-first, since
-                # two-digit years is usually hand-written.
-                res.day, res.month, res.year = ymd
-            end
-        elseif monthindex == 3
-            # WTF
-            if ymd[2] > 31
-                # 01-99-Jan
-                res.day, res.year, res.month = ymd
-            else
-                res.year, res.day, res.month = ymd
-            end
-        else
-            if ymd[1] > 31 || (yearfirst && ymd[2] <= 12 && ymd[3] <= 31)
-                # 99-01-01
-                res.year, res.month, res.day = ymd
-            elseif ymd[1] > 12 || (dayfirst && ymd[2] <= 12)
-                # 13-01-01
-                res.day, res.month, res.year = ymd
-            else
-                # 01-13-01
-                res.month, res.day, res.year = ymd
-            end
+    elseif len == 3
+        if ismatch(types, [MONTH, DAY, YEAR])
+            month, day, year = values
+        elseif ismatch(types, [DAY, MONTH, YEAR])
+            day, month, year = values
+        elseif ismatch(types, [YEAR, MONTH, DAY])
+            year, month, day = values
+        elseif ismatch(types, [YEAR, DAY, MONTH])
+            year, day, month = values
+        elseif ismatch(types, [MONTH, YEAR, DAY])
+            month, year, day = values
+        elseif ismatch(types, [DAY, YEAR, MONTH])
+            day, year, month = values
         end
     end
-    if !isnull(res.year)
-        res.year = convertyear(get(res.year).value)
+
+    if any([year, month, day] .!= nothing)
+        return year, month, day
+    else
+        return nothing
     end
 end
 
