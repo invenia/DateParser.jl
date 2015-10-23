@@ -154,14 +154,10 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
             digit = m[1]
             index = nextind(str, index + endof(m.match) - 1)
 
-            println("$index, $digit")
-
             if length(digit) == 6
                 # YYMMDD or HHMMSS[.ss]
                 values = map(d -> parse(Int, d), [digit[1:2], digit[3:4], digit[5:6]])
                 m = match(r"\G\.(\d+)", str, index)
-
-                println("length == 6: $digit, \"$(str[index:end])\"")
 
                 if m != nothing || !isempty(date_values)
                     # 19990101T235959[.59]
@@ -238,14 +234,10 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
                 # HH:MM[:SS[.ss]]
                 res.hour = digit
 
-                println("HH:MM")
-
                 minute, second, decimal = m.captures
                 index = nextind(str, index + endof(m.match) - 1)
 
                 res.minute = minute
-
-                println("$digit, $minute, $second, $millisecond")
 
                 if second != nothing
                     res.second = second
@@ -258,8 +250,6 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
 
             elseif (m = match(r"\G([-/.])(?|(\d+)(?(1)\1(\d+|\S+))?|((?:(?!\1)\S)+)(?(1)\1(\d+))?)", str, index)) != nothing
                 # 1998-02-18, 1999/Feb/18, 1999.18.02
-                println("YYYY-MM-DD")
-
                 push!(date_values, parse(Int, digit))
                 push!(date_types, ALL)
                 index = nextind(str, index + endof(m.match) - 1)
@@ -283,7 +273,6 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
                 index = nextind(str, index + endof(m.match) - 1)
 
             else
-                println("Fallback")
                 value = parse(Int, digit)
 
                 if length(date_values) < 3
@@ -350,17 +339,13 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
             m = match(skip_regex, str, index)
 
             if m != nothing
-                println("Skipping: \"$(m.match)\"")
                 index = nextind(str, index + endof(m.match) - 1)
             elseif !fuzzy
-                println("$(str[index:end])")
                 error("Failed to parse date")
             else
                 index = nextind(str, index)
             end
         end
-
-        println("$index \"$(str[index:end])\"")
 
         if last_index == index
             error("Something has gone wrong: $res, $date_values")
@@ -373,12 +358,10 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
         mask = [YEAR; fill(ALL, length(date_types) - 1)]
         ymd = processymd(date_values, date_types & mask)
     end
-
     if dayfirst && ymd == nothing
         mask = [DAY; fill(ALL, length(date_types) - 1)]
         ymd = processymd(date_values, date_types & mask)
     end
-
     if ymd == nothing
         ymd = processymd(date_values, date_types)
     end
@@ -440,7 +423,6 @@ function extract_tz(str::AbstractString, index::Integer=1; tzmap::Dict{AbstractS
         hour, minute = map(d -> d != nothing ? parse(Int, d) : 0, m.captures[3:end])
         hour < 24 && minute < 60 || error("Timezone offset out of range: $(m.match)")
 
-
         offset = sign * (hour * 3600 + minute * 60)
         index = nextind(str, index + endof(m.match) - 1)
 
@@ -461,8 +443,6 @@ function extract_tz(str::AbstractString, index::Integer=1; tzmap::Dict{AbstractS
             index = nextind(str, index + endof(m.match) - 1)
         end
     end
-
-    @show name, fixed_name, offset
 
     if haskey(tzmap, name)
         tz = tzmap[name]
