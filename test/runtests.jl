@@ -25,55 +25,67 @@ include("tokens.jl")
 @test DateParser.parse_as_decimal("05") == 0.05
 @test DateParser.parse_as_decimal("999") == 0.999
 
-# _tryparse {Month}
-@test isequal(DateParser._tryparse(Month, "january"), Nullable(Month(1)))
-@test isequal(DateParser._tryparse(Month, "oct"), Nullable(Month(10)))
-@test isequal(DateParser._tryparse(Month, "garbage"), Nullable{Month}())
+@test DateParser.parse_as_decimal("5", 1000) == 500
+@test DateParser.parse_as_decimal("50", 1000) == 500
+@test DateParser.parse_as_decimal("05", 1000) == 50
+@test DateParser.parse_as_decimal("999", 1000) == 999
+@test DateParser.parse_as_decimal("9999", 1000) == 1000  # 999.9
 
-# _tryparse {DayOfWeek}
-@test isequal(DateParser._tryparse(DayOfWeek, "monday"), Nullable(DayOfWeek(1)))
-@test isequal(DateParser._tryparse(DayOfWeek, "wed"), Nullable(DayOfWeek(3)))
-@test isequal(DateParser._tryparse(DayOfWeek, "garbage"), Nullable{DayOfWeek}())
 
-# _tryparse {TimeZone}
-# let mapping = Dict{AbstractString,TimeZone}("Etc/GMT+3" => FixedTimeZone("GMT+3", -10800))
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "America/Winnipeg"),
-#         Nullable(TimeZone("America/Winnipeg")),
-#     )
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "MST7MDT"),
-#         Nullable(TimeZone("MST7MDT")),
-#     )
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "Asia/Ho_Chi_Minh"),
-#         Nullable(TimeZone("Asia/Ho_Chi_Minh"))
-#     )
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "America/North_Dakota/New_Salem"),
-#         Nullable(TimeZone("America/North_Dakota/New_Salem")),
-#     )
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "America/Port-au-Prince"),
-#         Nullable(TimeZone("America/Port-au-Prince")),
-#     )
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "Z"),
-#         Nullable(FixedTimeZone("UTC", 0)),
-#     )
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "Etc/GMT+3"),
-#         Nullable{TimeZone}(),
-#     )
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "Etc/GMT+3", translation=mapping),
-#         Nullable(mapping["Etc/GMT+3"]),
-#     )
-#     @test isequal(
-#         DateParser._tryparse(TimeZone, "badzone"),
-#         Nullable{TimeZone}(),
-#     )
-# end
+### Extract functions ###
+
+@test DateParser.extract_dayofweek("Monday") == (1, 7)
+@test DateParser.extract_dayofweek("Wed") == (3, 4)
+@test DateParser.extract_dayofweek("Tuednesday") == nothing
+
+@test DateParser.extract_month("January") == (1, 8)
+@test DateParser.extract_month("Oct") == (10, 4)
+@test DateParser.extract_month("Febtober") == nothing
+
+@test DateParser.extract_tz("UTC") == (FixedTimeZone("UTC", 0), 4)
+@test DateParser.extract_tz("GMT") == (FixedTimeZone("GMT", 0), 4)
+@test DateParser.extract_tz("Z") == (FixedTimeZone("UTC", 0), 2)
+
+@test DateParser.extract_tz("+1") == (FixedTimeZone("+1", 3600), 3)
+@test DateParser.extract_tz("-01") == (FixedTimeZone("-01", -3600), 4)
+@test DateParser.extract_tz("+2:00") == (FixedTimeZone("+2:00", 7200), 6)
+@test DateParser.extract_tz("-02:00") == (FixedTimeZone("-02:00", -7200), 7)
+@test DateParser.extract_tz("+0200") == (FixedTimeZone("+0200", 7200), 6)
+
+# Names prior to offsets require preceeding whitespace
+@test DateParser.extract_tz("UTC+1") == nothing
+@test DateParser.extract_tz(" UTC+1", 2) == (FixedTimeZone("UTC+1", 3600), 7)
+@test DateParser.extract_tz(" BRT-05:00", 2) == (FixedTimeZone("BRT-05:00", -3600 * 5), 11)
+@test DateParser.extract_tz(" Europe/Warsaw-02:00", 2) == nothing
+@test DateParser.extract_tz("-5:00 (BRT)") == (FixedTimeZone("BRT", -3600 * 5), 12)
+
+# Note: Ignores the manually specified offset
+@test DateParser.extract_tz("-02:00 (Europe/Warsaw)") == (TimeZone("Europe/Warsaw"), 23)
+
+@test DateParser.extract_tz("Europe/Warsaw") == (TimeZone("Europe/Warsaw"), 14)
+@test DateParser.extract_tz("MST7MDT") == (TimeZone("MST7MDT"), 8)
+@test DateParser.extract_tz("Asia/Ho_Chi_Minh") == (TimeZone("Asia/Ho_Chi_Minh"), 17)
+@test DateParser.extract_tz("America/North_Dakota/New_Salem") == (TimeZone("America/North_Dakota/New_Salem"),31)
+@test DateParser.extract_tz("America/Port-au-Prince") == (TimeZone("America/Port-au-Prince"), 23)
+
+@test DateParser.extract_tz("Europe / Warsaw") == nothing
+
+# Allow users to supply name to TimeZone mappings
+etc_gmt3 = FixedTimeZone("GMT+3", -10800)
+mapping = Dict{AbstractString,TimeZone}("Etc/GMT+3" => etc_gmt3)
+@test DateParser.extract_tz("Etc/GMT+3") == nothing
+@test DateParser.extract_tz("Etc/GMT+3", 1, tzmap=mapping) == (etc_gmt3, 10)
+
+
+@test parse(DateTime, "1997") == DateTime(1997, 1, 1)
+@test parse(DateTime, "1997-07") == DateTime(1997, 7, 1)
+@test parse(DateTime, "1997-07-16") == DateTime(1997, 7, 16)
+@test parse(DateTime, "1997-07-16T19:20+01:00") == DateTime(1997, 7, 16, 19, 20)
+@test parse(DateTime, "1997-07-16T19:20:30+01:00") == DateTime(1997, 7, 16, 19, 20, 30)
+@test parse(DateTime, "1997-07-16T19:20:30.45+01:00") == DateTime(1997, 7, 16, 19, 20, 30, 450)
+
+
+
 
 
 
@@ -99,11 +111,11 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 # MMYYYY is not supported because it will parse as 3 date tokens
 @test parse(Date, "102015", default=default_d) == Date(2015, 10, 20)
 
-@test parse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
+@test parse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, tzmap=timezone_infos) == ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))
 
 # tryparse
 @test isequal(
-    tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, timezone_infos=timezone_infos),
+    tryparse(ZonedDateTime, "Oct 13, 1994 12:10:14 UTC", default=default_zdt, tzmap=timezone_infos),
     Nullable(ZonedDateTime(DateTime(1994, 10, 13, 12, 10, 14), FixedTimeZone("UTC", 0))),
 )
 @test isequal(
@@ -170,12 +182,12 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test parse(DateTime, "February of 1999", default=default_dt) == DateTime(1999, 2, 4)
 @test parse(DateTime, "12h am", default=default_dt) == DateTime(1976, 7, 4, 0)
 @test parse(DateTime, "1h pm", default=default_dt) == DateTime(1976, 7, 4, 13)
-@test parse(ZonedDateTime, "13h Etc/GMT+3", default=default_zdt, timezone_infos=timezone_infos).timezone.offset.utc == Dates.Second(-10800)
+@test parse(ZonedDateTime, "13h Etc/GMT+3", default=default_zdt, tzmap=timezone_infos).timezone.offset.utc == Dates.Second(-10800)
 @test parse(ZonedDateTime, "13h +03:00", default=default_zdt).timezone.offset.utc == Dates.Second(10800)
 @test parse(ZonedDateTime, "13h -0300", default=default_zdt).timezone.offset.utc == Dates.Second(-10800)
 @test parse(ZonedDateTime, "13h +03", default=default_zdt).timezone.offset.utc == Dates.Second(10800)
 @test parse(ZonedDateTime, "13h -3", default=default_zdt).timezone.offset.utc == Dates.Second(-10800)
-@test parse(ZonedDateTime, "13h -0 (GMT)", default=default_zdt, timezone_infos=timezone_infos).timezone.offset.utc == Dates.Second(0)
+@test parse(ZonedDateTime, "13h -0 (GMT)", default=default_zdt, tzmap=timezone_infos).timezone.offset.utc == Dates.Second(0)
 @test isnull(tryparse(ZonedDateTime, "13h +12345", default=default_zdt))
 @test isnull(tryparse(ZonedDateTime, "13h +", default=default_zdt))
 @test parse(DateTime, "february the 3rd 1999", default=default_dt) == DateTime(1999, 2, 3)
@@ -219,15 +231,15 @@ timezone_infos = Dict{AbstractString, TimeZone}(
 @test parse(DateTime, "13s", default=default_dt) == DateTime(1976, 7, 4, 0, 0, 13, 0)
 @test parse(DateTime, "0.5s", default=default_dt) == DateTime(1976, 7, 4, 0, 0, 0, 500)
 @test parse(ZonedDateTime, "1999", default=default_zdt).timezone == default_zdt.timezone
-@test parse(ZonedDateTime, "1999 2:30 TEST", timezone_infos=timezone_infos, default=default_zdt).timezone == timezone_infos["TEST"]
+@test parse(ZonedDateTime, "1999 2:30 TEST", tzmap=timezone_infos, default=default_zdt).timezone == timezone_infos["TEST"]
 @test parse(ZonedDateTime, "1999 2:30 WET", default=default_zdt).timezone.name == :WET
 @test parse(ZonedDateTime, "1999 2:30 Z", default=default_zdt).timezone == FixedTimeZone("UTC", 0)
 @test isnull(tryparse(ZonedDateTime, "1999 2:30 FAIL", default=default_zdt))
 @test parse(ZonedDateTime, "1999 2:30 +01:00", default=default_zdt).timezone.name == symbol("+01:00")
 @test parse(ZonedDateTime, "1999 2:30 +01:00", default=default_zdt).timezone.offset.utc == Dates.Second(3600)
-@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", timezone_infos=timezone_infos, default=default_zdt).timezone.name == :TEST
+@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", tzmap=timezone_infos, default=default_zdt).timezone.name == :TEST
 # If both a timezone in timezone_infos and a timezone offset exist use the timezone in timezone_infos
-@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", timezone_infos=timezone_infos, default=default_zdt).timezone.offset.utc == Dates.Second(3600)
+@test parse(ZonedDateTime, "1999 2:30 -01:00 (TEST)", tzmap=timezone_infos, default=default_zdt).timezone.offset.utc == Dates.Second(3600)
 
 @test parse(ZonedDateTime, "1999 2:30 America/Winnipeg", default=default_zdt).timezone.name == Symbol("America/Winnipeg")
 @test parse(ZonedDateTime, "1999 2:30 MST7MDT", default=default_zdt).timezone.name == Symbol("MST7MDT")
@@ -338,3 +350,36 @@ date = DateTime(1976, 7, 4)
 @test parse(DateTime, "23:59:59Z", default=default_dt) == DateTime(1976, 7, 4, 23, 59, 59)
 @test parse(DateTime, "12:00Z", default=default_dt) == DateTime(1976, 7, 4, 12)
 @test parse(DateTime, "13:00+01:00", default=default_dt) == DateTime(1976, 7, 4, 13)
+
+
+
+######
+
+# timezone = TimeZone("Europe/Warsaw")
+# default_d = Date(1976, 7, 4)
+# default_dt = DateTime(default_d)
+# default_zdt = ZonedDateTime(default_dt, timezone)
+# timezone_infos = Dict{AbstractString, TimeZone}(
+#     "TEST" => FixedTimeZone("TEST", 3600),
+#     "UTC" => FixedTimeZone("UTC", 0),
+#     "GMT" => FixedTimeZone("GMT", 0),
+#     "Etc/GMT+3" => FixedTimeZone("GMT+3", -10800),
+# )
+
+# # Weird things
+# @test parse(ZonedDateTime, "1999 2:30 America/Winnipeg", default=default_zdt).timezone.name == Symbol("America/Winnipeg")
+# @test parse(ZonedDateTime, "1999 2:30 MST7MDT", default=default_zdt).timezone.name == Symbol("MST7MDT")
+
+
+
+
+
+
+
+
+@test parse(DateTime, "1997") == DateTime(1997, 1, 1)
+@test parse(DateTime, "1997-07") == DateTime(1997, 7, 1)
+@test parse(DateTime, "1997-07-16") == DateTime(1997, 7, 16)
+@test parse(DateTime, "1997-07-16T19:20+01:00") == DateTime(1997, 7, 16, 19, 20)
+@test parse(DateTime, "1997-07-16T19:20:30+01:00") == DateTime(1997, 7, 16, 19, 20, 30)
+@test parse(DateTime, "1997-07-16T19:20:30.45+01:00") == DateTime(1997, 7, 16, 19, 20, 30, 450)

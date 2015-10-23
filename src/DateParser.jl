@@ -20,11 +20,6 @@ include("tokens.jl")
 # http://new-pds-rings-2.seti.org/tools/time_formats.html
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
-immutable DayOfWeek <: DatePeriod
-    value::Int64
-    DayOfWeek(v::Number) = new(v)
-end
-
 const english_hms = Dict(
     "h" => :hour, "hour" => :hour, "hours" => :hour,
     "m" => :minute, "minute" => :minute, "minutes" => :minute,
@@ -52,7 +47,12 @@ const JUMP = [
     "nd", "rd", "th", "the",
 ]
 const PERTAIN = ["of",]
-const UTCZONE = ["UTC", "GMT", "Z"]
+const UTC_ZONES = ["UTC", "GMT", "Z"]
+
+const YEAR_TYPE = 0x01
+const MONTH_TYPE = 0x02
+const DAY_TYPE = 0x04
+
 
 function Base.tryparse{T<:TimeType}(::Type{T}, s::AbstractString; args...)
     try
@@ -110,7 +110,7 @@ function Base.parse(::Type{Date}, d::AbstractString;
     )
 end
 
-type Parts
+type Components
     year::Nullable{Year}
     month::Nullable{Month}
     day::Nullable{Day}
@@ -119,21 +119,21 @@ type Parts
     second::Nullable{Second}
     millisecond::Nullable{Millisecond}
     timezone::Nullable{TimeZone}
-    dayofweek::Nullable{DayOfWeek}
-    tzoffset::Nullable{Int}
-    tzname::Nullable{AbstractString}
-    Parts() = new(nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
-        nothing, nothing, nothing)
+    dayofweek::Nullable{Int}
+
+    Components() = new(
+        nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
+    )
 end
 Base.convert{T}(::Type{Nullable{T}}, x::Any) = Nullable{T}(T(x))
 
 function _parsedate(str::AbstractString; fuzzy::Bool=false,
-    timezone_infos::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
+    tzmap::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
     locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
 )
-    res = Parts()
+    res = Components()
 
     ymd = sizehint!(Int[], 3)  # year/month/day list
     monthindex = -1  # Index of a month string in ymd
@@ -265,12 +265,10 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
                     token != nothing || continue
                     if isdigit(token)
                         push!(ymd, parse(Int, token))
-                    else
-                        m = _tryparse(Month, token, locale=locale)
-                        if !isnull(m)
-                            push!(ymd, get(m))
-                            monthindex = length(ymd)
-                        end
+                    elseif (ext = extract_month(token, locale=locale)) != nothing
+                        month, _ = ext
+                        push!(ymd, month)
+                        monthindex = length(ymd)
                     end
                 end
 
@@ -308,10 +306,10 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
                 end
             end
 
-        elseif (ext = extract_dayofweek(str, index, locale)) != nothing
+        elseif (ext = extract_dayofweek(str, index, locale=locale)) != nothing
             res.dayofweek, index = ext
 
-        elseif (ext = extract_month(str, index, locale)) != nothing
+        elseif (ext = extract_month(str, index, locale=locale)) != nothing
             # Month name
             month, index = ext
 
@@ -339,7 +337,7 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
             res.hour = converthour(get(res.hour).value, meridiem)
             index = nextind(str, index + endof(m.match) - 1)
 
-        elseif isnull(res.timezone) && (ext = extract_tz(str, index, timezone_infos)) != nothing
+        elseif isnull(res.timezone) && (ext = extract_tz(str, index, tzmap=tzmap)) != nothing
             res.timezone, index = ext
 
         else
@@ -366,35 +364,10 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
 
     processymd!(res, ymd, monthindex=monthindex, yearfirst=yearfirst, dayfirst=dayfirst)
 
-    if isnull(res.timezone) && !isnull(res.tzoffset)
-        res.tzname = get(res.tzname, "local")
-        res.timezone = FixedTimeZone(get(res.tzname), get(res.tzoffset))
-    end
-
     return res
 end
 
-type Extract
-    result::Any
-    index::Integer
-end
-
-Base.start(iter::Extract) = 1
-Base.next(iter::Extract, state::Integer) = iter[state], state + 1
-Base.done(iter::Extract, state::Integer) = state > 2
-
-function getindex(ext::Extract, index::Integer)
-    if index == 1
-        return ext.result
-    elseif index == 2
-        return ext.index
-    else
-        throw(BoundsError(ext, index))
-    end
-end
-
-
-function extract_dayofweek(str::AbstractString, index::Integer, locale::AbstractString="english")
+function extract_dayofweek(str::AbstractString, index::Integer=1; locale::AbstractString="english")
     dow_words = [
         collect(keys(DAYOFWEEKTOVALUE[locale]));
         collect(keys(DAYOFWEEKABBRTOVALUE[locale]))
@@ -406,13 +379,13 @@ function extract_dayofweek(str::AbstractString, index::Integer, locale::Abstract
         name = lowercase(m["dow"])
         dow = get(DAYOFWEEKTOVALUE[locale], name, get(DAYOFWEEKABBRTOVALUE[locale], name, nothing))
         index = nextind(str, index + endof(m.match) - 1)
-        return Extract(dow, index)
+        return dow, index
     end
 
     return nothing
 end
 
-function extract_month(str::AbstractString, index::Integer, locale::AbstractString="english")
+function extract_month(str::AbstractString, index::Integer=1; locale::AbstractString="english")
     words = [
         collect(keys(MONTHTOVALUE[locale]));
         collect(keys(MONTHABBRTOVALUE[locale]))
@@ -424,13 +397,13 @@ function extract_month(str::AbstractString, index::Integer, locale::AbstractStri
         name = lowercase(m["word"])
         month = get(MONTHTOVALUE[locale], name, get(MONTHABBRTOVALUE[locale], name, nothing))
         index = nextind(str, index + endof(m.match) - 1)
-        return Extract(month, index)
+        return month, index
     end
 
     return nothing
 end
 
-function extract_tz(str::AbstractString, index::Integer, translation::Dict{AbstractString,TimeZone}=Dict{AbstractString,TimeZone}())
+function extract_tz(str::AbstractString, index::Integer=1; tzmap::Dict{AbstractString,TimeZone}=Dict{AbstractString,TimeZone}())
     name = fixed_name = ""
     offset = 0
 
@@ -466,18 +439,18 @@ function extract_tz(str::AbstractString, index::Integer, translation::Dict{Abstr
 
     @show name, fixed_name, offset
 
-    if haskey(translation, name)
-        tz = translation[name]
-        return Extract(tz, index)
+    if haskey(tzmap, name)
+        tz = tzmap[name]
+        return tz, index
     elseif name in TimeZones.timezone_names()
         tz = TimeZone(name)
-        return Extract(tz, index)
-    elseif name in UTCZONE
+        return tz, index
+    elseif name in UTC_ZONES
         tz = FixedTimeZone("UTC", 0)
-        return Extract(tz, index)
+        return tz, index
     elseif fixed_name != ""
         tz = FixedTimeZone(name != "" ? name : fixed_name, offset)
-        return Extract(tz, index)
+        return tz, index
     end
 
     return nothing
@@ -489,7 +462,7 @@ function regex_str(iter)
     join(["\\Q$el\\E" for el in iter], "|")
 end
 
-function processymd!(res::Parts, ymd::Array{Int};
+function processymd!(res::Components, ymd::Array{Int};
         monthindex=-1, yearfirst=false, dayfirst=false
 )
     # Process year/month/day
@@ -575,42 +548,6 @@ end
 
 function parse_as_decimal(s::AbstractString, multiplier::Integer)
     round(Int, parse_as_decimal(s) * multiplier)
-end
-
-function _tryparse(::Type{Month}, s::AbstractString; locale::AbstractString="english")
-    name = lowercase(s)
-    temp = Nullable{Int}(get(MONTHTOVALUE[locale], name,
-        get(MONTHABBRTOVALUE[locale], name, nothing)))
-    if isnull(temp)
-        Nullable{Month}()
-    else
-        Nullable{Month}(Month(get(temp)))
-    end
-end
-
-function _tryparse(::Type{DayOfWeek}, s::AbstractString; locale::AbstractString="english")
-    name = lowercase(s)
-    temp = Nullable{Int}(get(DAYOFWEEKTOVALUE[locale], name,
-        get(DAYOFWEEKABBRTOVALUE[locale], name, nothing)))
-    if isnull(temp)
-        Nullable{DayOfWeek}()
-    else
-        Nullable{DayOfWeek}(DayOfWeek(get(temp)))
-    end
-end
-
-function _tryparse(::Type{TimeZone}, name::AbstractString;
-    translation::Dict{AbstractString,TimeZone}=Dict{AbstractString,TimeZone}()
-)
-    if haskey(translation, name)
-        return Nullable{TimeZone}(translation[name])
-    elseif name in TimeZones.timezone_names()
-        return Nullable{TimeZone}(TimeZone(name))
-    elseif lowercase(name) in UTCZONE
-        return Nullable{TimeZone}(FixedTimeZone("UTC", 0))
-    else
-        return Nullable{TimeZone}()
-    end
 end
 
 "Converts a 2 digit year to a 4 digit one within 50 years of convert_year. At the momment
