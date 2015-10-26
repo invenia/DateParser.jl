@@ -6,9 +6,6 @@ using TimeZones
 import Base.Dates: VALUETODAYOFWEEK, VALUETODAYOFWEEKABBR, VALUETOMONTH, VALUETOMONTHABBR
 import TimeZones: localtime
 
-# Re-export from Base with ZonedDateTime, DateTime, and Date
-export parse, tryparse
-
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
 # https://labix.org/python-dateutil#head-a23e8ae0a661d77b89dfb3476f85b26f0b30349c
 
