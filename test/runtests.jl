@@ -387,3 +387,5 @@ date = DateTime(1976, 7, 4)
 @test parse(DateTime, "1997-07-16T19:20+01:00") == DateTime(1997, 7, 16, 19, 20)
 @test parse(DateTime, "1997-07-16T19:20:30+01:00") == DateTime(1997, 7, 16, 19, 20, 30)
 @test parse(DateTime, "1997-07-16T19:20:30.45+01:00") == DateTime(1997, 7, 16, 19, 20, 30, 450)
+
+@test get(DateParser.DateParts("97/7/1 24:00").hour) == 24

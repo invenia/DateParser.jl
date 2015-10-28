@@ -71,68 +71,41 @@ end
 function parse(::Type{ZonedDateTime}, str::AbstractString;
     default::ZonedDateTime=ZonedDateTime(DateTime(current_year()), UTC), kwargs...
 )
-    res = _parsedate(str; kwargs...)
-
-    return ZonedDateTime(
-        DateTime(
-            get(res.year, Year(default)),
-            get(res.month, Month(default)),
-            get(res.day, Day(default)),
-            get(res.hour, Hour(default)),
-            get(res.minute, Minute(default)),
-            get(res.second, Second(default)),
-            get(res.millisecond, Millisecond(default))
-        ),
-        get(res.timezone, default.timezone)
-    )
+    dp = DateParts(str; kwargs...)
+    return ZonedDateTime(dp, default)
 end
 
 function parse(::Type{DateTime}, str::AbstractString;
     default::DateTime=DateTime(current_year()), kwargs...
 )
-    res = _parsedate(str; kwargs...)
-
-    return DateTime(
-        get(res.year, Year(default)),
-        get(res.month, Month(default)),
-        get(res.day, Day(default)),
-        get(res.hour, Hour(default)),
-        get(res.minute, Minute(default)),
-        get(res.second, Second(default)),
-        get(res.millisecond, Millisecond(default))
-    )
+    dp = DateParts(str; kwargs...)
+    return DateTime(dp, default)
 end
 
 function parse(::Type{Date}, str::AbstractString;
     default::Date=Date(current_year()), kwargs...
 )
-    res = _parsedate(str; kwargs...)
-
-    return Date(
-        get(res.year, Year(default)),
-        get(res.month, Month(default)),
-        get(res.day, Day(default))
-    )
+    dp = DateParts(str; kwargs...)
+    return Date(dp, default)
 end
 
-type Components
-    year::Nullable{Year}
-    month::Nullable{Month}
-    day::Nullable{Day}
-    hour::Nullable{Hour}
-    minute::Nullable{Minute}
-    second::Nullable{Second}
-    millisecond::Nullable{Millisecond}
-    timezone::Nullable{TimeZone}
+type DateParts
+    year::Nullable{Int}
+    month::Nullable{Int}
+    day::Nullable{Int}
+    hour::Nullable{Int}
+    minute::Nullable{Int}
+    second::Nullable{Int}
+    millisecond::Nullable{Int}
     dayofweek::Nullable{Int}
+    timezone::Nullable{TimeZone}
 
-    Components() = new(
+    DateParts() = new(
         nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end
-Base.convert{T}(::Type{Nullable{T}}, x::Any) = Nullable{T}(T(x))
 
-function _parsedate(
+function DateParts(
     str::AbstractString;
     fuzzy::Bool=false,
     tzmap::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
@@ -140,7 +113,7 @@ function _parsedate(
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
     locale::AbstractString="english", # Locale in Dates.VALUETOMONTH and VALUETODAYOFWEEK
 )
-    res = Components()
+    res = DateParts()
 
     # Date (year, month, day) information
     date_values = sizehint!(Int[], 3)
@@ -185,19 +158,19 @@ function _parsedate(
                 push!(date_types, fill(ALL, length(values))...)
 
                 if length(digit) > 8
-                    res.hour = digit[9:10]
-                    res.minute = digit[11:12]
+                    res.hour = parse(Int, digit[9:10])
+                    res.minute = parse(Int, digit[11:12])
                     if length(digit) > 12
-                        res.second = digit[13:14]
+                        res.second = parse(Int, digit[13:14])
                     end
                 end
 
             elseif length(digit) == 9
                 # HHMMSS[mil]
-                res.hour = digit[1:2]
-                res.minute = digit[3:4]
-                res.second = digit[5:6]
-                res.millisecond = digit[7:9]
+                res.hour = parse(Int, digit[1:2])
+                res.minute = parse(Int, digit[3:4])
+                res.second = parse(Int, digit[5:6])
+                res.millisecond = parse(Int, digit[7:9])
 
             elseif (m = match(hms_regex, str, index)) != nothing || hint != :none
                 # HH[.MM][ ]h or MM[.SS][ ]m or SS[.ss][ ]s
@@ -219,34 +192,34 @@ function _parsedate(
                 if label == :hour
                     res.hour = value
                     if decimal != ""
-                        res.minute = get(res.minute, 0) + Minute(parse_as_decimal(decimal, 60))
+                        res.minute = parse_as_decimal(decimal, 60) + get(res.minute, 0)
                     end
                     hint = :minute
                 elseif label == :minute
                     res.minute = value
                     if decimal != ""
-                        res.second = get(res.second, 0) + Second(parse_as_decimal(decimal, 60))
+                        res.second = parse_as_decimal(decimal, 60) + get(res.second, 0)
                     end
                     hint = :second
                 elseif label == :second
                     res.second = value
                     if decimal != ""
-                        res.millisecond = get(res.millisecond, 0) + Millisecond(parse_as_decimal(decimal, 1000))
+                        res.millisecond = parse_as_decimal(decimal, 1000) + get(res.millisecond, 0)
                     end
                     hint == :none
                 end
 
             elseif (m = match(r"\G:(\d+)(?:\:(\d+))?(?:\.(\d+))?", str, index)) != nothing
                 # HH:MM[:SS[.ss]]
-                res.hour = digit
+                res.hour = parse(Int, digit)
 
                 minute, second, decimal = m.captures
                 index = nextind(str, index + endof(m.match) - 1)
 
-                res.minute = minute
+                res.minute = parse(Int, minute)
 
                 if second != nothing
-                    res.second = second
+                    res.second = parse(Int, second)
                     if decimal != nothing
                         res.millisecond = parse_as_decimal(decimal, 1000)
                     end
@@ -300,8 +273,8 @@ function _parsedate(
                 elseif length(digit) == 3 && isnull(res.millisecond)
                     res.millisecond = value
                 elseif length(digit) == 4 && isnull(res.hour) && isnull(res.minute)
-                    res.hour = digit[1:2]
-                    res.minute = digit[3:4]
+                    res.hour = parse(Int, digit[1:2])
+                    res.minute = parse(Int, digit[3:4])
                 elseif !fuzzy
                     error("Failed to parse date")
                 end
@@ -336,7 +309,7 @@ function _parsedate(
             # am/pm
             isnull(res.hour) && error("Expected to find hour prior to the period indicator: $(m["key"])")
             period = AMPM[locale][lowercase(m["key"])]
-            res.hour = normalize_hour(get(res.hour).value, period)
+            res.hour = normalize_hour(get(res.hour), period)
             index = nextind(str, index + endof(m.match) - 1)
 
         elseif isnull(res.timezone) && (ext = extract_tz(str, index, tzmap=tzmap)) != nothing
@@ -381,6 +354,33 @@ function _parsedate(
     end
 
     return res
+end
+
+function ZonedDateTime(dp::DateParts, default::ZonedDateTime=ZonedDateTime(DateTime(current_year()), UTC))
+    ZonedDateTime(
+        DateTime(dp, DateTime(default)),
+        get(dp.timezone, default.timezone),
+    )
+end
+
+function DateTime(dp::DateParts, default::DateTime=DateTime(current_year()))
+    DateTime(
+        get(dp.year, year(default)),
+        get(dp.month, month(default)),
+        get(dp.day, day(default)),
+        get(dp.hour, hour(default)),
+        get(dp.minute, minute(default)),
+        get(dp.second, second(default)),
+        get(dp.millisecond, millisecond(default))
+    )
+end
+
+function Date(dp::DateParts, default::Date=Date(current_year()))
+    Date(
+        get(dp.year, year(default)),
+        get(dp.month, month(default)),
+        get(dp.day, day(default)),
+    )
 end
 
 function extract_dayofweek(str::AbstractString, index::Integer=1; locale::AbstractString="english")
