@@ -6,6 +6,8 @@ using TimeZones
 import Base.Dates: VALUETODAYOFWEEK, VALUETODAYOFWEEKABBR, VALUETOMONTH, VALUETOMONTHABBR
 import TimeZones: localtime
 
+import Base: parse
+
 # Re-export from Base with ZonedDateTime, DateTime, and Date
 export parse, tryparse
 
@@ -54,6 +56,9 @@ const MONTH = UInt8(0x02)
 const DAY = UInt8(0x04)
 const ALL = YEAR | MONTH | DAY
 
+current_year() = year(unix2datetime(time()))
+const UTC = FixedTimeZone("UTC", 0)
+
 
 function Base.tryparse{T<:TimeType}(::Type{T}, s::AbstractString; args...)
     try
@@ -63,11 +68,10 @@ function Base.tryparse{T<:TimeType}(::Type{T}, s::AbstractString; args...)
     end
 end
 
-function Base.parse(::Type{ZonedDateTime}, zdt::AbstractString;
-    default::ZonedDateTime=ZonedDateTime(DateTime(year(today())), FixedTimeZone("UTC", 0)),
-    args...
+function parse(::Type{ZonedDateTime}, str::AbstractString;
+    default::ZonedDateTime=ZonedDateTime(DateTime(current_year()), UTC), kwargs...
 )
-    res = _parsedate(zdt; args...)
+    res = _parsedate(str; kwargs...)
 
     return ZonedDateTime(
         DateTime(
@@ -83,10 +87,10 @@ function Base.parse(::Type{ZonedDateTime}, zdt::AbstractString;
     )
 end
 
-function Base.parse(::Type{DateTime}, dt::AbstractString;
-    default::DateTime=DateTime(year(today())), args...
+function parse(::Type{DateTime}, str::AbstractString;
+    default::DateTime=DateTime(current_year()), kwargs...
 )
-    res = _parsedate(dt; args...)
+    res = _parsedate(str; kwargs...)
 
     return DateTime(
         get(res.year, Year(default)),
@@ -99,10 +103,10 @@ function Base.parse(::Type{DateTime}, dt::AbstractString;
     )
 end
 
-function Base.parse(::Type{Date}, d::AbstractString;
-    default::Date=Date(year(today())), args...
+function parse(::Type{Date}, str::AbstractString;
+    default::Date=Date(current_year()), kwargs...
 )
-    res = _parsedate(d; args...)
+    res = _parsedate(str; kwargs...)
 
     return Date(
         get(res.year, Year(default)),
@@ -128,7 +132,9 @@ type Components
 end
 Base.convert{T}(::Type{Nullable{T}}, x::Any) = Nullable{T}(T(x))
 
-function _parsedate(str::AbstractString; fuzzy::Bool=false,
+function _parsedate(
+    str::AbstractString;
+    fuzzy::Bool=false,
     tzmap::Dict{AbstractString, TimeZone}=Dict{AbstractString, TimeZone}(), # Specify what a timezone is
     dayfirst::Bool=false, # MM-DD-YY vs DD-MM-YY
     yearfirst::Bool=false, # MM-DD-YY vs YY-MM-DD
@@ -269,7 +275,8 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
             elseif (m = match(ampm_regex, str, index)) != nothing
                 # 12am
                 hour = parse(Int, digit)
-                res.hour = converthour(hour, AMPM[locale][lowercase(m["key"])])
+                period = AMPM[locale][lowercase(m["key"])]
+                res.hour = normalize_hour(hour, period)
                 index = nextind(str, index + endof(m.match) - 1)
 
             else
@@ -327,9 +334,9 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
 
         elseif (m = match(ampm_regex, str, index)) != nothing
             # am/pm
-            isnull(res.hour) && error("Expected to find hour prior to the meridiem")
-            meridiem = AMPM[locale][lowercase(m["key"])]
-            res.hour = converthour(get(res.hour).value, meridiem)
+            isnull(res.hour) && error("Expected to find hour prior to the period indicator: $(m["key"])")
+            period = AMPM[locale][lowercase(m["key"])]
+            res.hour = normalize_hour(get(res.hour).value, period)
             index = nextind(str, index + endof(m.match) - 1)
 
         elseif isnull(res.timezone) && (ext = extract_tz(str, index, tzmap=tzmap)) != nothing
@@ -353,6 +360,7 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
         last_index = index
     end
 
+    # Determine order of year, month, and day digits
     ymd = nothing
     if yearfirst && ymd == nothing
         mask = [YEAR; fill(ALL, length(date_types) - 1)]
@@ -368,7 +376,7 @@ function _parsedate(str::AbstractString; fuzzy::Bool=false,
 
     if ymd != nothing
         year, month, day = ymd
-        year != nothing && (year = convertyear(year))
+        year != nothing && (year = normalize_year(year))
         res.year, res.month, res.day = year, month, day
     end
 
@@ -539,15 +547,20 @@ function parse_as_decimal(s::AbstractString, multiplier::Integer)
     round(Int, parse_as_decimal(s) * multiplier)
 end
 
-"Converts a 2 digit year to a 4 digit one within 50 years of convert_year. At the momment
- convert_year defaults to 2000, if people are still using 2 digit years after year 2049
- (hopefully not) then we can change the default to today()"
-function convertyear(year::Int, convert_year=2000)
-    if year <= 99
-        century = convert_year - (convert_year % 100)
-        year += century
-        if abs(year - convert_year) >= 50
-            if year < convert_year
+"""
+Converts years represented with two digits to their absolute form. The current_year
+parameter allows you to adjust how two digit years are interpreted. The resulting year will
+always be within 50 years of the current_year. Note: at the moment the current_year is fixed
+to the year 2000. Hopefully in the year 2050 we've got away from this practise but if we
+have not we should change the default to be `year(today())`.
+"""
+function normalize_year(year::Integer, current_year::Integer=2000)
+    if 0 <= year <= 99
+        current_century = current_year - (current_year % 100)
+        year += current_century
+
+        if abs(year - current_year) >= 50
+            if year < current_year
                 year += 100
             else
                 year -= 100
@@ -557,15 +570,14 @@ function convertyear(year::Int, convert_year=2000)
     return year
 end
 
-function converthour(hour::Integer, ampm::Symbol)
-    if hour < 12 && ampm == :pm
+function normalize_hour(hour::Integer, period::Symbol)
+    if period == :pm && 0 < hour < 12
         hour = hour + 12
-    elseif hour == 12 && ampm == :am
+    elseif period == :am && hour == 12
         hour = 0
     end
+
     return hour
 end
-
-
 
 end # module

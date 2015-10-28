@@ -6,17 +6,23 @@ using TimeZones
 
 include("processymd.jl")
 
-@test DateParser.convertyear(10) == 2010
-@test DateParser.convertyear(95) == 1995
-@test DateParser.convertyear(49) == 2049
-@test DateParser.convertyear(50) == 1950
-@test DateParser.convertyear(10, 2075) == 2110  # set current year to 2075
+@test DateParser.normalize_year(0) == 2000
+@test DateParser.normalize_year(10) == 2010
+@test DateParser.normalize_year(95) == 1995
+@test DateParser.normalize_year(49) == 2049
+@test DateParser.normalize_year(50) == 1950
+@test DateParser.normalize_year(50) == 1950
+@test DateParser.normalize_year(2010) == 2010
+@test DateParser.normalize_year(10, 2075) == 2110  # set current year to 2075
 
-@test DateParser.converthour(1, :am) == 1
-@test DateParser.converthour(1, :pm) == 13
-@test DateParser.converthour(12, :am) == 0
-@test DateParser.converthour(12, :pm) == 12
-@test DateParser.converthour(23, :am) == 23
+@test DateParser.normalize_hour(1, :am) == 1
+@test DateParser.normalize_hour(1, :pm) == 13
+@test DateParser.normalize_hour(12, :am) == 0
+@test DateParser.normalize_hour(12, :pm) == 12
+
+# Period indicator is misleading
+@test DateParser.normalize_hour(0, :pm) == 0
+@test DateParser.normalize_hour(23, :am) == 23
 
 @test DateParser.parse_as_decimal("5") == 0.5
 @test DateParser.parse_as_decimal("50") == 0.5
