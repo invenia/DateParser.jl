@@ -248,20 +248,20 @@ expected_date = Date(1995, 2, 4)
 
 default_dt = DateTime(1997, 1, 1)
 @test parse(DateTime, "23:59:59", default=default_dt) == DateTime(1997, 1, 1, 23, 59, 59)
-# @test parse(DateTime, "235959", default=default_dt) == DateTime(1997, 1, 1, 23, 59, 59)
+@test parse(DateTime, "235959", default=default_dt) == DateTime(1997, 1, 1, 23, 59, 59)
 @test parse(DateTime, "23:59", default=default_dt) == DateTime(1997, 1, 1, 23, 59)
-# @test parse(DateTime, "2359", default=default_dt) == DateTime(1997, 1, 1, 23, 59)
-# @test parse(DateTime, "23", default=default_dt) == DateTime(1997, 1, 1, 23)
+@test parse(DateTime, "2359", default=default_dt) == DateTime(1997, 1, 1, 23, 59)
+@test parse(DateTime, "23", default=default_dt) == DateTime(1997, 1, 1, 23)
 @test parse(DateTime, "23:59:59.9942", default=default_dt) == DateTime(1997, 1, 1, 23, 59, 59, 994)
 @test parse(DateTime, "235959.9942", default=default_dt) == DateTime(1997, 1, 1, 23, 59, 59, 994)
-# @test parse(DateTime, "1995-02-04 24:00") == Date(1995, 2, 5)
+@test parse(DateTime, "1995-02-04 24:00") == Date(1995, 2, 5)
 @test parse(DateTime, "19951231T235959", default=default_dt) == DateTime(1995, 12, 31, 23, 59, 59)
 
 default_zdt = ZonedDateTime(DateTime(1997, 1, 1), FixedTimeZone("GMT", 0))
 @test parse(ZonedDateTime, "23:59:59Z", default=default_zdt) == ZonedDateTime(DateTime(1997, 1, 1, 23, 59, 59), FixedTimeZone("UTC", 0))
 @test parse(ZonedDateTime, "12:00Z", default=default_zdt) == ZonedDateTime(DateTime(1997, 1, 1, 12), FixedTimeZone("UTC", 0))
 @test parse(ZonedDateTime, "13:00+01:00", default=default_zdt) == ZonedDateTime(DateTime(1997, 1, 1, 13), FixedTimeZone("+01:00", 3600))
-# @test parse(ZonedDateTime, "0700-0500", default=default_zdt) == ZonedDateTime(DateTime(1997, 1, 1, 7), FixedTimeZone("-0500", -18000))
+@test parse(ZonedDateTime, "0700-0500", default=default_zdt) == ZonedDateTime(DateTime(1997, 1, 1, 7), FixedTimeZone("-0500", -18000))
 
 
 # Tests derived from: http://www.w3.org/TR/NOTE-datetime
@@ -288,9 +288,9 @@ expected_date = DateTime(1976, 7, 4)
 default_dt = DateTime(1976, 7, 4)
 expected_dt = DateTime(1976, 7, 4, 0, 1, 2)
 @test parse(DateTime, "0:01:02", default=default_dt) == expected_dt
-# @test parse(DateTime, "0 1 2", default=default_dt) == expected_dt
-# @test parse(DateTime, "12h 62.00s am", default=default_dt) == expected_dt
-# @test parse(DateTime, "61s", default=default_dt) == expected_dt
+@test parse(DateTime, "0 1 2", default=default_dt) == expected_dt
+@test parse(DateTime, "12h 62.00s am", default=default_dt) == expected_dt
+@test parse(DateTime, "61s", default=default_dt) == expected_dt
 @test parse(DateTime, "1 m 2s 000z", default=default_dt) == expected_dt
 @test parse(DateTime, "1 m 2s 000", default=default_dt) == expected_dt
 
@@ -298,5 +298,5 @@ expected_dt = DateTime(1976, 7, 4, 0, 1, 2)
 @test parse(DateTime, "7 4 76 0 1 2") == expected_dt
 @test parse(DateTime, "1976-07-04T00:01:02Z") == expected_dt
 @test parse(DateTime, "July 4, 1976 12:01:02 am") == expected_dt
-# @test parse(DateTime, "0 1 2 19760704") == expected_dt
+@test parse(DateTime, "0 1 2 19760704") == expected_dt
 # @test parse(DateTime, "MJD 42963.00071759259") == expected_dt
