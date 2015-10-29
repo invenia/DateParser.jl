@@ -163,6 +163,8 @@ function DateParts(
                         month, _ = ext
                         push!(date_values, month)
                         push!(date_types, MONTH)
+                    else
+                        error("Unhandled date value: $token")
                     end
                 end
 

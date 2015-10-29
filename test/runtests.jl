@@ -121,6 +121,8 @@ default = DateTime(1997, 7, 6)
 @test parse(DateTime, "04 02 03", dayfirst=true) == DateTime(2003, 2, 4)
 
 @test_throws ErrorException parse(DateTime, "1999-10-13 pm")
+@test_throws ErrorException parse(DateTime, "1/b/c")
+@test_throws ErrorException parse(DateTime, "1/b/3")
 
 
 default = DateTime(1976, 7, 4)
