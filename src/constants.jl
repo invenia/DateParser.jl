@@ -29,6 +29,6 @@ const JUMP = UTF8String[
     "nd", "rd", "th", "the",
 ]
 const PERTAIN = UTF8String["of"]
-const UTC_ZONES = UTF8String["UTC", "GMT", "Z"]
+const UTC_ZONES = UTF8String["UTC", "GMT", "Z", "z"]
 
 const UTC = FixedTimeZone("UTC", 0)

@@ -127,7 +127,7 @@ function DateParts(
                     if decimal != ""
                         res.millisecond = parse_as_decimal(decimal, 1000) + get(res.millisecond, 0)
                     end
-                    hint == :none
+                    hint = :none
                 end
 
             elseif (m = match(r"\G:(\d+)(?:\:(\d+))?(?:\.(\d+))?", str, index)) != nothing
@@ -176,7 +176,9 @@ function DateParts(
             else
                 value = parse(Int, digit)
 
-                if length(date_values) < 3
+                if length(digit) == 3 && isnull(res.millisecond)
+                    res.millisecond = value
+                elseif length(date_values) < 3
                     push!(date_values, value)
                     push!(date_types, ALL)
                 elseif length(digit) <= 2
@@ -191,8 +193,6 @@ function DateParts(
                     elseif !fuzzy
                         error("Failed to parse date")
                     end
-                elseif length(digit) == 3 && isnull(res.millisecond)
-                    res.millisecond = value
                 elseif length(digit) == 4 && isnull(res.hour) && isnull(res.minute)
                     res.hour = parse(Int, digit[1:2])
                     res.minute = parse(Int, digit[3:4])

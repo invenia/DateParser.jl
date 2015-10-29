@@ -289,8 +289,8 @@ expected_dt = DateTime(1976, 7, 4, 0, 1, 2)
 # @test parse(DateTime, "0 1 2", default=default_dt) == expected_dt
 # @test parse(DateTime, "12h 62.00s am", default=default_dt) == expected_dt
 # @test parse(DateTime, "61s", default=default_dt) == expected_dt
-# @test parse(DateTime, "1 m 2s 000z", default=default_dt) == expected_dt
-# @test parse(DateTime, "1 m 2s 000", default=default_dt) == expected_dt
+@test parse(DateTime, "1 m 2s 000z", default=default_dt) == expected_dt
+@test parse(DateTime, "1 m 2s 000", default=default_dt) == expected_dt
 
 @test parse(DateTime, "0:01:02 on July 4, 1976") == expected_dt
 @test parse(DateTime, "7 4 76 0 1 2") == expected_dt
