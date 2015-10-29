@@ -10,6 +10,8 @@ for ymd in permutations([99,12,31])
     @test processymd(ymd, [A,A,A]) == answer
 end
 
+# Since order matters and month can only be 3 we can expect certain formats
+# be used based upon the position of the month.
 for ymd in permutations([21,22,3])
     mask = ymd .> 12
     if mask == [false, true, true]
@@ -21,10 +23,12 @@ for ymd in permutations([21,22,3])
     end
 end
 
+# Month or day is not provided
 for ymd in permutations([41,42,3])
     @test processymd(ymd, [A,A,A]) == nothing
 end
 
+# Values provided are ambigious and only the type mask will adjust the output
 for ymd in permutations([1,2,3])
     @test processymd(ymd, [A,A,A]) == (ymd[3], ymd[1], ymd[2])  # M/D/Y
 
