@@ -1,4 +1,5 @@
 import DateParser: processymd, YEAR, MONTH, DAY, ALL
+import Combinatorics: permutations
 Y, M, D, A = YEAR, MONTH, DAY, ALL
 
 @test_throws Exception processymd([1,2,3,4], [A,A,A,A])
