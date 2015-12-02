@@ -1,4 +1,4 @@
-import Base.Dates: Date, DateTime
+import Base.Dates: Date, DateTime, CompoundPeriod
 import TimeZones: TimeZone, ZonedDateTime
 
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
@@ -287,21 +287,61 @@ function Date(dp::DateParts, default::Date=Date(current_year()))
     )
 end
 
-function DateTime(dp::DateParts, default::DateTime=DateTime(current_year()))
-    DateTime(
+function DateTime(dp::DateParts, default::DateTime=DateTime(current_year());
+    overflow::Bool=false
+)
+    if overflow
+        periods = CompoundPeriod(Period[
+            Hour(get(dp.hour, hour(default))),
+            Minute(get(dp.minute, minute(default))),
+            Second(get(dp.second, second(default))),
+            Millisecond(get(dp.millisecond, millisecond(default))),
+        ]).periods
+
+        weeks = Week(0)
+        days = Day(0)
+        dp.hour = 0
+        dp.minute = 0
+        dp.second = 0
+        dp.millisecond = 0
+        for period in periods
+            if isa(period, Week)
+                weeks = period
+            elseif isa(period, Day)
+                days = period
+            elseif isa(period, Hour)
+                dp.hour = period.value
+            elseif isa(period, Minute)
+                dp.minute = period.value
+            elseif isa(period, Second)
+                dp.second = period.value
+            elseif isa(period, Millisecond)
+                dp.millisecond = period.value
+            end
+        end
+    end
+    datetime = DateTime(
         get(dp.year, year(default)),
         get(dp.month, month(default)),
         get(dp.day, day(default)),
         get(dp.hour, hour(default)),
         get(dp.minute, minute(default)),
         get(dp.second, second(default)),
-        get(dp.millisecond, millisecond(default))
+        get(dp.millisecond, millisecond(default)),
     )
+    if overflow
+        datetime += days
+        datetime += weeks
+    end
+    return datetime
 end
 
-function ZonedDateTime(dp::DateParts, default::ZonedDateTime=ZonedDateTime(DateTime(current_year()), UTC))
+function ZonedDateTime(dp::DateParts,
+    default::ZonedDateTime=ZonedDateTime(DateTime(current_year()), UTC);
+    overflow::Bool=false
+)
     ZonedDateTime(
-        DateTime(dp, DateTime(default)),
+        DateTime(dp, DateTime(default), overflow=overflow),
         get(dp.timezone, default.timezone),
     )
 end

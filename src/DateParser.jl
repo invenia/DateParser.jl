@@ -30,17 +30,18 @@ function parse(::Type{Date}, str::AbstractString;
 end
 
 function parse(::Type{DateTime}, str::AbstractString;
-    default::DateTime=DateTime(current_year()), kwargs...
+    default::DateTime=DateTime(current_year()), overflow::Bool=false, kwargs...
 )
     dp = DateParts(str; kwargs...)
-    return DateTime(dp, default)
+    return DateTime(dp, default, overflow=overflow)
 end
 
 function parse(::Type{ZonedDateTime}, str::AbstractString;
-    default::ZonedDateTime=ZonedDateTime(DateTime(current_year()), UTC), kwargs...
+    default::ZonedDateTime=ZonedDateTime(DateTime(current_year()), UTC),
+    overflow::Bool=false, kwargs...
 )
     dp = DateParts(str; kwargs...)
-    return ZonedDateTime(dp, default)
+    return ZonedDateTime(dp, default, overflow=overflow)
 end
 
 end # module

@@ -189,6 +189,11 @@ end
 @test parse(ZonedDateTime, "21:38, 30 May 2006 UTC") == ZonedDateTime(DateTime(2006, 5, 30, 21, 38), FixedTimeZone("UTC", 0))
 @test parse(ZonedDateTime, "2015.10.02 10:21:59.45") == ZonedDateTime(DateTime(2015, 10, 2, 10, 21, 59, 450), FixedTimeZone("UTC", 0))
 
+# Overflow
+@test parse(DateTime, "dec 2 2015 24:00:00", overflow=true) == DateTime(2015, 12, 03)
+@test parse(DateTime, "dec 2 2015 168h", overflow=true) == DateTime(2015, 12, 09)
+@test parse(DateTime, "dec 29 1999 99:99:99", overflow=true) == DateTime(2000, 01, 02, 04, 40, 39)
+
 
 # Alternative locales
 DateParser.DAYOFWEEKTOVALUE["french"] = Dict(
@@ -257,8 +262,7 @@ default_dt = DateTime(1997, 1, 1)
 # @test parse(DateTime, "23", default=default_dt) == DateTime(1997, 1, 1, 23)
 @test parse(DateTime, "23:59:59.9942", default=default_dt) == DateTime(1997, 1, 1, 23, 59, 59, 994)
 @test parse(DateTime, "235959.9942", default=default_dt) == DateTime(1997, 1, 1, 23, 59, 59, 994)
-# TODO add overflow option
-# @test parse(DateTime, "1995-02-04 24:00") == Date(1995, 2, 5)
+@test parse(DateTime, "1995-02-04 24:00", overflow=true) == Date(1995, 2, 5)
 @test parse(DateTime, "19951231T235959", default=default_dt) == DateTime(1995, 12, 31, 23, 59, 59)
 
 default_zdt = ZonedDateTime(DateTime(1997, 1, 1), FixedTimeZone("GMT", 0))
@@ -295,10 +299,8 @@ expected_dt = DateTime(1976, 7, 4, 0, 1, 2)
 @test parse(DateTime, "0:01:02", default=default_dt) == expected_dt
 # We don't support 0 1 2 being 00:01:02 because it is 2000-01-02T00:00:00
 # @test parse(DateTime, "0 1 2", default=default_dt) == expected_dt
-# TODO add overflow option
-# @test parse(DateTime, "12h 62.00s am", default=default_dt) == expected_dt
-# TODO add overflow option
-# @test parse(DateTime, "61s", default=default_dt) == expected_dt
+@test parse(DateTime, "12h 62.00s am", default=default_dt, overflow=true) == expected_dt
+@test parse(DateTime, "62s", default=default_dt, overflow=true) == expected_dt
 @test parse(DateTime, "1 m 2s 000z", default=default_dt) == expected_dt
 @test parse(DateTime, "1 m 2s 000", default=default_dt) == expected_dt
 
