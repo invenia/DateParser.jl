@@ -192,7 +192,7 @@ end
 # Overflow
 @test parse(DateTime, "dec 2 2015 24:00:00", overflow=true) == DateTime(2015, 12, 03)
 @test parse(DateTime, "dec 2 2015 168h", overflow=true) == DateTime(2015, 12, 09)
-@test parse(DateTime, "dec 29 1999 99:99:99", overflow=true) == DateTime(2000, 01, 02, 04, 40, 39)
+@test parse(DateTime, "dec 29 1999 99:99:99.999", overflow=true) == DateTime(2000, 01, 02, 04, 40, 39, 999)
 
 
 # Alternative locales
