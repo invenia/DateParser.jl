@@ -11,14 +11,14 @@ import TimeZones: TimeZone, ZonedDateTime
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
 type DateParts
-    year::Nullable{Int}
-    month::Nullable{Int}
-    day::Nullable{Int}
-    hour::Nullable{Int}
-    minute::Nullable{Int}
-    second::Nullable{Int}
-    millisecond::Nullable{Int}
-    dayofweek::Nullable{Int}
+    year::Nullable{Int64}
+    month::Nullable{Int64}
+    day::Nullable{Int64}
+    hour::Nullable{Int64}
+    minute::Nullable{Int64}
+    second::Nullable{Int64}
+    millisecond::Nullable{Int64}
+    dayofweek::Nullable{Int64}
     timezone::Nullable{TimeZone}
 
     DateParts() = new(
@@ -37,7 +37,7 @@ function DateParts(
     res = DateParts()
 
     # Date (year, month, day) information
-    date_values = sizehint!(Int[], 3)
+    date_values = sizehint!(Int64[], 3)
     date_types = sizehint!(UInt8[], 3)
 
     hint = :none
@@ -56,7 +56,7 @@ function DateParts(
 
             if length(digit) == 6
                 # YYMMDD or HHMMSS[.ss]
-                values = map(d -> parse(Int, d), [digit[1:2], digit[3:4], digit[5:6]])
+                values = map(d -> parse(Int64, d), [digit[1:2], digit[3:4], digit[5:6]])
                 m = match(r"\G\.(\d+)", str, index)
 
                 if m != nothing || !isempty(date_values)
@@ -74,29 +74,29 @@ function DateParts(
 
             elseif length(digit) in (8, 12, 14)
                 # YYYYMMDD[hhmm[ss]]
-                values = map(d -> parse(Int, d), [digit[1:4], digit[5:6], digit[7:8]])
+                values = map(d -> parse(Int64, d), [digit[1:4], digit[5:6], digit[7:8]])
                 push!(date_values, values...)
                 push!(date_types, fill(ALL, length(values))...)
 
                 if length(digit) > 8
-                    res.hour = parse(Int, digit[9:10])
-                    res.minute = parse(Int, digit[11:12])
+                    res.hour = parse(Int64, digit[9:10])
+                    res.minute = parse(Int64, digit[11:12])
                     if length(digit) > 12
-                        res.second = parse(Int, digit[13:14])
+                        res.second = parse(Int64, digit[13:14])
                     end
                 end
 
             elseif length(digit) == 9
                 # HHMMSS[mil]
-                res.hour = parse(Int, digit[1:2])
-                res.minute = parse(Int, digit[3:4])
-                res.second = parse(Int, digit[5:6])
-                res.millisecond = parse(Int, digit[7:9])
+                res.hour = parse(Int64, digit[1:2])
+                res.minute = parse(Int64, digit[3:4])
+                res.second = parse(Int64, digit[5:6])
+                res.millisecond = parse(Int64, digit[7:9])
 
             elseif (m = match(hms_regex, str, index)) != nothing || hint != :none
                 # HH[.MM][ ]h or MM[.SS][ ]m or SS[.ss][ ]s
 
-                value = parse(Int, digit)
+                value = parse(Int64, digit)
 
                 # Grab decimal. Note that we still want to get the decimal if we entered
                 # when hint != :none
@@ -132,15 +132,15 @@ function DateParts(
 
             elseif (m = match(r"\G:(\d+)(?:\:(\d+))?(?:\.(\d+))?", str, index)) != nothing
                 # HH:MM[:SS[.ss]]
-                res.hour = parse(Int, digit)
+                res.hour = parse(Int64, digit)
 
                 minute, second, decimal = m.captures
                 index = nextind(str, index + endof(m.match) - 1)
 
-                res.minute = parse(Int, minute)
+                res.minute = parse(Int64, minute)
 
                 if second != nothing
-                    res.second = parse(Int, second)
+                    res.second = parse(Int64, second)
                     if decimal != nothing
                         res.millisecond = parse_as_decimal(decimal, 1000)
                     end
@@ -150,14 +150,14 @@ function DateParts(
 
             elseif (m = match(r"\G([-/.])(?|(\d+)(?(1)\1(\d+|\S+))?|((?:(?!\1)\S)+)(?(1)\1(\d+))?)", str, index)) != nothing
                 # 1998-02-18, 1999/Feb/18, 1999.18.02
-                push!(date_values, parse(Int, digit))
+                push!(date_values, parse(Int64, digit))
                 push!(date_types, ALL)
                 index = nextind(str, index + endof(m.match) - 1)
 
                 for token in m.captures[2:end]
                     token != nothing || continue
                     if isdigit(token)
-                        push!(date_values, parse(Int, token))
+                        push!(date_values, parse(Int64, token))
                         push!(date_types, ALL)
                     elseif (ext = extract_month(token, locale=locale)) != nothing
                         month, _ = ext
@@ -170,13 +170,13 @@ function DateParts(
 
             elseif (m = match(ampm_regex, str, index)) != nothing
                 # 12am
-                hour = parse(Int, digit)
+                hour = parse(Int64, digit)
                 period = AMPM[locale][lowercase(m["key"])]
                 res.hour = normalize_hour(hour, period)
                 index = nextind(str, index + endof(m.match) - 1)
 
             else
-                value = parse(Int, digit)
+                value = parse(Int64, digit)
 
                 if length(digit) == 3 && isnull(res.millisecond)
                     res.millisecond = value
@@ -196,8 +196,8 @@ function DateParts(
                         error("Failed to parse date")
                     end
                 elseif length(digit) == 4 && isnull(res.hour) && isnull(res.minute)
-                    res.hour = parse(Int, digit[1:2])
-                    res.minute = parse(Int, digit[3:4])
+                    res.hour = parse(Int64, digit[1:2])
+                    res.minute = parse(Int64, digit[3:4])
                 elseif !fuzzy
                     error("Failed to parse date")
                 end
@@ -216,14 +216,14 @@ function DateParts(
             if (m = match(r"\G([-/.])(\d+)(?(1)\1(\d+))", str, index)) != nothing
                 # Jan-01[-99]
                 for token in m.captures[2:end]
-                    push!(date_values, parse(Int, token))
+                    push!(date_values, parse(Int64, token))
                     push!(date_types, ALL)
                 end
 
                 index = nextind(str, index + endof(m.match) - 1)
             elseif (m = match(pertain_regex, str, index)) != nothing
                 # "Jan of 01": 01 is clearly the year
-                push!(date_values, parse(Int, m["year"]))
+                push!(date_values, parse(Int64, m["year"]))
                 push!(date_types, YEAR)
                 index = nextind(str, index + endof(m.match) - 1)
             end
