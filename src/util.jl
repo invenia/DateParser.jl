@@ -7,7 +7,7 @@ e.g. parse_as_decimal(\"5\") = 0.5
      parse_as_decimal(\"450\") = 0.450
 """
 function parse_as_decimal(s::AbstractString)
-    parse(Int, s) / 10^length(s)
+    parse(Int64, s) / 10^length(s)
     # parse(Float64, string(".", s))
 end
 
@@ -18,7 +18,7 @@ The multiplier is applied to the fractional value and an `Integer` is returned.
 e.g. parse_as_decimal(\"450\", 1000) = 450
 """
 function parse_as_decimal(s::AbstractString, multiplier::Integer)
-    round(Int, parse_as_decimal(s) * multiplier)
+    round(Int64, parse_as_decimal(s) * multiplier)
 end
 
 """
