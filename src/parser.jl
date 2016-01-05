@@ -1,5 +1,6 @@
 import Base.Dates: Date, DateTime, CompoundPeriod
 import TimeZones: TimeZone, ZonedDateTime
+import Base.convert
 
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
 # https://labix.org/python-dateutil#head-a23e8ae0a661d77b89dfb3476f85b26f0b30349c

@@ -10,6 +10,9 @@ include("extract.jl")
 include("processymd.jl")
 include("util.jl")
 
+# win32 uses Int32 and Base only has a convert for a Nullable of the same type
+@test get(convert(Nullable{Int64}, Int32(6))) == 6
+
 # Basic parsing tests
 @test parse(Date, "Oct 13, 1994 12:10:14 UTC") == Date(1994, 10, 13)
 @test parse(DateTime, "Oct 13, 1994 12:10:14 UTC") == DateTime(1994, 10, 13, 12, 10, 14)
