@@ -26,8 +26,10 @@ type DateParts
         nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end
-# win32 uses Int32 and Base only has a convert for a Nullable of the same type
-convert{T}(::Type{Nullable{T}}, x) = Nullable{T}(T(x))
+# win32 uses Int32 and 0.4 Base only has a convert for a Nullable of the same type
+if VERSION < v"0.5-"
+    convert{T}(::Type{Nullable{T}}, x) = Nullable{T}(T(x))
+end
 
 function DateParts(
     str::AbstractString;
