@@ -167,7 +167,7 @@ function DateParts(
 
                 for token in m.captures[2:end]
                     token != nothing || continue
-                    if isdigit(token)
+                    if all(isdigit, token)
                         push!(date_values, parse(Int64, token))
                         push!(date_types, ALL)
                     elseif (ext = extract_month(token, locale=locale)) != nothing
