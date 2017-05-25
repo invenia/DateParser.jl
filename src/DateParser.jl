@@ -8,7 +8,7 @@ import Base: parse, tryparse
 # Re-export from Base with ZonedDateTime, DateTime, and Date
 export parse, tryparse
 
-include("constants.jl")
+include("constants-0.5.jl")
 include("parser.jl")
 include("extract.jl")
 include("processymd.jl")
