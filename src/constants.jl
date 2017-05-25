@@ -10,19 +10,19 @@ for name in ("DAYOFWEEK", "DAYOFWEEKABBR", "MONTH", "MONTHABBR")
     valueto = Symbol("VALUETO" * name)
     tovalue = Symbol(name * "TOVALUE")
     @eval begin
-        const $tovalue = [locale => Dict{String,Int}(
+        const $tovalue = [locale => Dict{String, Int}(
             zip(map(lowercase, values(d)), keys(d))) for (locale, d) in $valueto]
     end
 end
 
-const HMS = Dict{String,Dict{String,Symbol}}(
+const HMS = Dict{String, Dict{String, Symbol}}(
     "english" => Dict(
         "h" => :hour,   "hour" => :hour,     "hours" => :hour,
         "m" => :minute, "minute" => :minute, "minutes" => :minute,
         "s" => :second, "second" => :second, "seconds" => :second,
     )
 )
-const AMPM = Dict{String,Dict{String,Symbol}}(
+const AMPM = Dict{String, Dict{String, Symbol}}(
     "english" => Dict(
         "am" => :am, "a" => :am,
         "pm" => :pm, "p" => :pm,
