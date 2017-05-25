@@ -270,12 +270,12 @@ function DateParts(
     # Determine order of year, month, and day digits
     ymd = nothing
     if yearfirst && ymd == nothing
-        mask = [YEAR; fill(ALL, length(date_types) - 1)]
-        ymd = processymd(date_values, date_types & mask)
+        date_types = [YEAR & date_types[1]; date_types[2:end]]
+        ymd = processymd(date_values, date_types)
     end
     if dayfirst && ymd == nothing
-        mask = [DAY; fill(ALL, length(date_types) - 1)]
-        ymd = processymd(date_values, date_types & mask)
+        date_types = [DAY & date_types[1]; date_types[2:end]]
+        ymd = processymd(date_values, date_types)
     end
     if ymd == nothing
         ymd = processymd(date_values, date_types)

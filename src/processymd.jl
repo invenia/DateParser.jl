@@ -3,6 +3,9 @@ const MONTH = UInt8(0x02)
 const DAY = UInt8(0x04)
 const ALL = YEAR | MONTH | DAY
 
+ismatch{T <: Integer}(a::T, b::T) = a & b != zero(T)
+ismatch{T <: Integer}(a::Array{T}, b::Array{T}) = all(t -> ismatch(t...), zip(a, b))
+
 function processymd{T<:Integer}(values::Array{T}, types::Array{UInt8})
     year = nothing
     month = nothing
@@ -18,7 +21,6 @@ function processymd{T<:Integer}(values::Array{T}, types::Array{UInt8})
         1 <= values[i] <= 31 || (types[i] &= ~DAY)
     end
 
-    ismatch = (a, b) -> all(el -> el != 0, a & b)
     if len == 1
         if ismatch(types, [DAY])
             day, = values
