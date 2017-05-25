@@ -9,10 +9,23 @@ const String = VERSION < v"0.5" ? UTF8String : Base.String
 for name in ("DAYOFWEEK", "DAYOFWEEKABBR", "MONTH", "MONTHABBR")
     valueto = Symbol("VALUETO" * name)
     tovalue = Symbol(name * "TOVALUE")
-    @eval begin
-        const $tovalue = [locale => Dict{String, Int}(
-            zip(map(lowercase, values(d)), keys(d))) for (locale, d) in $valueto]
-    end
+
+    @eval const $tovalue = Dict([
+        Pair(locale, Dict([
+            Pair(lowercase(b), a)
+            for (a, b) in d
+        ]))
+        for (locale, d) in $valueto
+    ])
+
+    # Better version for Julia v0.5+ only
+    # @eval const $tovalue = Dict(
+    #     locale => Dict(
+    #         lowercase(b) => a
+    #         for (a, b) in d
+    #     )
+    #     for (locale, d) in $valueto
+    # )
 end
 
 const HMS = Dict{String, Dict{String, Symbol}}(
