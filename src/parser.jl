@@ -2,6 +2,12 @@ import Base.Dates: Date, DateTime, CompoundPeriod
 import TimeZones: TimeZone, ZonedDateTime
 import Base.convert
 
+if VERSION >= v"0.6.0-dev.1874"
+    import Base.Dates: canonicalize
+else
+    canonicalize(x::CompoundPeriod) = x
+end
+
 # Automatic parsing of DateTime strings. Based upon Python's dateutil parser
 # https://labix.org/python-dateutil#head-a23e8ae0a661d77b89dfb3476f85b26f0b30349c
 
@@ -296,12 +302,12 @@ function DateTime(dp::DateParts, default::DateTime=DateTime(current_year());
     overflow::Bool=false
 )
     if overflow
-        periods = CompoundPeriod(Period[
+        periods = canonicalize(CompoundPeriod(Period[
             Hour(get(dp.hour, hour(default))),
             Minute(get(dp.minute, minute(default))),
             Second(get(dp.second, second(default))),
             Millisecond(get(dp.millisecond, millisecond(default))),
-        ]).periods
+        ])).periods
 
         weeks = Week(0)
         days = Day(0)
