@@ -1,4 +1,4 @@
-using DateParser
+import DateParser: parse, tryparse
 using Base.Test
 
 using Base.Dates
