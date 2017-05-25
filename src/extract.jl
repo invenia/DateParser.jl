@@ -43,7 +43,7 @@ function extract_tz(str::AbstractString, index::Integer=1; tzmap::Dict{AbstractS
     if m != nothing
         fixed_name = m.captures[1]
         sign = m.captures[2] == "+" ? 1 : -1
-        hour, minute = map(d -> d != nothing ? parse(Int, d) : 0, m.captures[3:end])
+        hour, minute = map(d -> d != nothing ? Base.parse(Int, d) : 0, m.captures[3:end])
         hour < 24 && minute < 60 || error("Timezone offset out of range: $(m.match)")
 
         offset = sign * (hour * 3600 + minute * 60)

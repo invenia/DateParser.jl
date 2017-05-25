@@ -7,8 +7,8 @@ e.g. parse_as_decimal(\"5\") = 0.5
      parse_as_decimal(\"450\") = 0.450
 """
 function parse_as_decimal(s::AbstractString)
-    parse(Int64, s) / 10^length(s)
-    # parse(Float64, string(".", s))
+    Base.parse(Int64, s) / 10^length(s)
+    # Base.parse(Float64, string(".", s))
 end
 
 """

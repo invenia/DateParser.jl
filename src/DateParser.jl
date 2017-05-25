@@ -3,10 +3,13 @@ module DateParser
 using Base.Dates
 using TimeZones
 
-import Base: parse, tryparse
+# Note: As of Julia 0.6 the methods `Base.parse(::Type{<:TimeType}, ::AbstractString)`
+# already exist and should no longer be exported. We probably want to rename these methods.
+
+# import Base: parse, tryparse
 
 # Re-export from Base with ZonedDateTime, DateTime, and Date
-export parse, tryparse
+# export parse, tryparse
 
 include(VERSION >= v"0.6.0-dev.2307" ? "constants.jl" : "constants-0.5.jl")
 include("parser.jl")
