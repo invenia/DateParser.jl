@@ -1,6 +1,10 @@
 import Base.Dates: VALUETODAYOFWEEK, VALUETODAYOFWEEKABBR, VALUETOMONTH, VALUETOMONTHABBR
 import TimeZones: FixedTimeZone
 
+# Forces Dicts to store UTF8String on Julia 0.4.
+# Note: The Dict type parameters can be dropped when support for Julia 0.4 is dropped.
+const String = VERSION < v"0.5" ? UTF8String : Base.String
+
 # Name to value translations
 for name in ("DAYOFWEEK", "DAYOFWEEKABBR", "MONTH", "MONTHABBR")
     valueto = Symbol("VALUETO" * name)
