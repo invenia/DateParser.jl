@@ -3,10 +3,10 @@ const MONTH = UInt8(0x02)
 const DAY = UInt8(0x04)
 const ALL = YEAR | MONTH | DAY
 
-ismatch{T <: Integer}(a::T, b::T) = a & b != zero(T)
-ismatch{T <: Integer}(a::Array{T}, b::Array{T}) = all(t -> ismatch(t...), zip(a, b))
+ismatch(a::T, b::T) where T <: Integer = a & b != zero(T)
+ismatch(a::Array{T}, b::Array{T}) where T <: Integer = all(t -> ismatch(t...), zip(a, b))
 
-function processymd{T<:Integer}(values::Array{T}, types::Array{UInt8})
+function processymd(values::Array{T}, types::Array{UInt8}) where T <: Integer
     year = nothing
     month = nothing
     day = nothing

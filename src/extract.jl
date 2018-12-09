@@ -9,7 +9,7 @@ function extract_dayofweek(str::AbstractString, index::Integer=1; locale::Abstra
     if m != nothing
         name = lowercase(m["dow"])
         dow = get(DAYOFWEEKTOVALUE[locale], name, get(DAYOFWEEKABBRTOVALUE[locale], name, nothing))
-        index = nextind(str, index + endof(m.match) - 1)
+        index = nextind(str, index + lastindex(m.match) - 1)
         return dow, index
     end
 
@@ -27,7 +27,7 @@ function extract_month(str::AbstractString, index::Integer=1; locale::AbstractSt
     if m != nothing
         name = lowercase(m["word"])
         month = get(MONTHTOVALUE[locale], name, get(MONTHABBRTOVALUE[locale], name, nothing))
-        index = nextind(str, index + endof(m.match) - 1)
+        index = nextind(str, index + lastindex(m.match) - 1)
         return month, index
     end
 
@@ -47,15 +47,15 @@ function extract_tz(str::AbstractString, index::Integer=1; tzmap::Dict{AbstractS
         hour < 24 && minute < 60 || error("Timezone offset out of range: $(m.match)")
 
         offset = sign * (hour * 3600 + minute * 60)
-        index = nextind(str, index + endof(m.match) - 1)
+        index = nextind(str, index + lastindex(m.match) - 1)
 
         # Named offset: (Europe/Warsaw)
-        if index <= endof(str)
+        if index <= lastindex(str)
 
             m = match(r"\G\s*\((?<name>[\p{L}/_+-]*)\)", str, index)
             if m != nothing
                 name = m["name"]
-                index = nextind(str, index + endof(m.match) - 1)
+                index = nextind(str, index + lastindex(m.match) - 1)
             end
         end
     else
@@ -63,7 +63,7 @@ function extract_tz(str::AbstractString, index::Integer=1; tzmap::Dict{AbstractS
         m = match(r"\G\s*(?<name>[\p{L}\d/_+-]*)", str, index)
         if m != nothing
             name = m["name"]
-            index = nextind(str, index + endof(m.match) - 1)
+            index = nextind(str, index + lastindex(m.match) - 1)
         end
     end
 

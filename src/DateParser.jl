@@ -1,6 +1,6 @@
 module DateParser
 
-using Base.Dates
+using Dates
 using TimeZones
 
 # Note: As of Julia 0.6 the methods `Base.parse(::Type{<:TimeType}, ::AbstractString)`
@@ -17,11 +17,11 @@ include("extract.jl")
 include("processymd.jl")
 include("util.jl")
 
-function tryparse{T<:TimeType}(::Type{T}, str::AbstractString; kwargs...)
+function tryparse(::Type{T}, str::AbstractString; kwargs...) where T <: TimeType
     try
-        return Nullable{T}(parse(T, str; kwargs...))
+        return Union{T, Nothing}(parse(T, str; kwargs...))
     catch
-        return Nullable{T}()
+        return Union{T, Nothing}()
     end
 end
 
