@@ -1,4 +1,4 @@
-import Base.Dates: LOCALES
+import Dates: LOCALES
 import TimeZones: FixedTimeZone
 
 # TODO: We should probably make a struct like DateLocale instead of doing this.

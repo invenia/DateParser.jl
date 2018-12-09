@@ -1,9 +1,9 @@
-import Base.Dates: Date, DateTime, CompoundPeriod
+import Dates: Date, DateTime, CompoundPeriod
 import TimeZones: TimeZone, ZonedDateTime
 import Base.convert
 
 if VERSION >= v"0.6.0-dev.1874"
-    import Base.Dates: canonicalize
+    import Dates: canonicalize
 else
     canonicalize(x::CompoundPeriod) = x
 end
@@ -17,16 +17,16 @@ end
 # http://new-pds-rings-2.seti.org/tools/time_formats.html
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
-type DateParts
-    year::Nullable{Int64}
-    month::Nullable{Int64}
-    day::Nullable{Int64}
-    hour::Nullable{Int64}
-    minute::Nullable{Int64}
-    second::Nullable{Int64}
-    millisecond::Nullable{Int64}
-    dayofweek::Nullable{Int64}
-    timezone::Nullable{TimeZone}
+struct DateParts
+    year::Union{Int64,Nothing}
+    month::Union{Int64,Nothing}
+    day::Union{Int64,Nothing}
+    hour::Union{Int64,Nothing}
+    minute::Union{Int64,Nothing}
+    second::Union{Int64,Nothing}
+    millisecond::Union{Int64,Nothing}
+    dayofweek::Union{Int64,Nothing}
+    timezone::Union{TimeZone,Nothing}
 
     DateParts() = new(
         nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
@@ -34,7 +34,7 @@ type DateParts
 end
 # win32 uses Int32 and 0.4 Base only has a convert for a Nullable of the same type
 if VERSION < v"0.5-"
-    convert{T}(::Type{Nullable{T}}, x) = Nullable{T}(T(x))
+    convert{T}(::Type{Union{T}}, x) = Nullable{T,Nothing}(T(x))
 end
 
 function DateParts(
@@ -53,10 +53,10 @@ function DateParts(
 
     hint = :none
 
-    const hms_regex = Regex("\\G(?:\\.\\d+)?\\s*(?<key>" * regex_str(keys(HMS[locale])) * ")(?=[\\W\\d]|\$)", "i")
-    const ampm_regex = Regex("\\G\\s*(?<key>" * regex_str(keys(AMPM[locale])) * ")(?=[\\W\\d]|\$)", "i")
-    const pertain_regex = Regex("\\G\\s*(?<word>" * regex_str(PERTAIN) * ")\\s*(?<year>\\d+)", "i")
-    const skip_regex = Regex("\\G\\s*(" * regex_str(JUMP) * ")(?=[\\W\\d]|\$)", "i")
+    hms_regex = Regex("\\G(?:\\.\\d+)?\\s*(?<key>" * regex_str(keys(HMS[locale])) * ")(?=[\\W\\d]|\$)", "i")
+    ampm_regex = Regex("\\G\\s*(?<key>" * regex_str(keys(AMPM[locale])) * ")(?=[\\W\\d]|\$)", "i")
+    pertain_regex = Regex("\\G\\s*(?<word>" * regex_str(PERTAIN) * ")\\s*(?<year>\\d+)", "i")
+    skip_regex = Regex("\\G\\s*(" * regex_str(JUMP) * ")(?=[\\W\\d]|\$)", "i")
 
     index = last_index = start(str)
     while index <= endof(str)
