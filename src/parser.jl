@@ -17,7 +17,7 @@ end
 # http://new-pds-rings-2.seti.org/tools/time_formats.html
 # http://search.cpan.org/~muir/Time-modules-2003.0211/lib/Time/ParseDate.pm
 
-struct DateParts
+mutable struct DateParts
     year::Union{Int64,Nothing}
     month::Union{Int64,Nothing}
     day::Union{Int64,Nothing}
@@ -58,12 +58,12 @@ function DateParts(
     pertain_regex = Regex("\\G\\s*(?<word>" * regex_str(PERTAIN) * ")\\s*(?<year>\\d+)", "i")
     skip_regex = Regex("\\G\\s*(" * regex_str(JUMP) * ")(?=[\\W\\d]|\$)", "i")
 
-    index = last_index = start(str)
-    while index <= endof(str)
+    index = last_index = firstindex(str)
+    while index <= lastindex(str)
         if (m = match(r"\G(\d+)", str, index)) != nothing
             # The digit is expected to be stored appropriately
             digit = m[1]
-            index = nextind(str, index + endof(m.match) - 1)
+            index = nextind(str, index + lastindex(m.match) - 1)
 
             if length(digit) == 6
                 # YYMMDD or HHMMSS[.ss]
@@ -76,7 +76,7 @@ function DateParts(
 
                     if m != nothing
                         res.millisecond = parse_as_decimal(m[1], 1000)
-                        index = nextind(str, index + endof(m.match) - 1)
+                        index = nextind(str, index + lastindex(m.match) - 1)
                     end
                 else
                     push!(date_values, values...)
@@ -116,7 +116,7 @@ function DateParts(
 
                 if m != nothing
                     label = HMS[locale][lowercase(m["key"])]
-                    index = nextind(str, index + endof(m.match) - 1)
+                    index = nextind(str, index + lastindex(m.match) - 1)
                 else
                     label = hint
                 end
@@ -124,19 +124,19 @@ function DateParts(
                 if label == :hour
                     res.hour = value
                     if decimal != ""
-                        res.minute = parse_as_decimal(decimal, 60) + get(res.minute, 0)
+                        res.minute = parse_as_decimal(decimal, 60) + something(res.minute, 0)
                     end
                     hint = :minute
                 elseif label == :minute
                     res.minute = value
                     if decimal != ""
-                        res.second = parse_as_decimal(decimal, 60) + get(res.second, 0)
+                        res.second = parse_as_decimal(decimal, 60) + something(res.second, 0)
                     end
                     hint = :second
                 elseif label == :second
                     res.second = value
                     if decimal != ""
-                        res.millisecond = parse_as_decimal(decimal, 1000) + get(res.millisecond, 0)
+                        res.millisecond = parse_as_decimal(decimal, 1000) + something(res.millisecond, 0)
                     end
                     hint = :none
                 end
@@ -146,7 +146,7 @@ function DateParts(
                 res.hour = Base.parse(Int64, digit)
 
                 minute, second, decimal = m.captures
-                index = nextind(str, index + endof(m.match) - 1)
+                index = nextind(str, index + lastindex(m.match) - 1)
 
                 res.minute = Base.parse(Int64, minute)
 
@@ -163,7 +163,7 @@ function DateParts(
                 # 1998-02-18, 1999/Feb/18, 1999.18.02
                 push!(date_values, Base.parse(Int64, digit))
                 push!(date_types, ALL)
-                index = nextind(str, index + endof(m.match) - 1)
+                index = nextind(str, index + lastindex(m.match) - 1)
 
                 for token in m.captures[2:end]
                     token != nothing || continue
@@ -184,29 +184,29 @@ function DateParts(
                 hour = Base.parse(Int64, digit)
                 period = AMPM[locale][lowercase(m["key"])]
                 res.hour = normalize_hour(hour, period)
-                index = nextind(str, index + endof(m.match) - 1)
+                index = nextind(str, index + lastindex(m.match) - 1)
 
             else
                 value = Base.parse(Int64, digit)
 
-                if length(digit) == 3 && isnull(res.millisecond)
+                if length(digit) == 3 && res.millisecond === nothing
                     res.millisecond = value
                 elseif length(date_values) < 3
                     push!(date_values, value)
                     push!(date_types, ALL)
                 elseif length(digit) <= 2
-                    if isnull(res.hour)
+                    if res.hour === nothing
                         res.hour = value
-                    elseif isnull(res.minute)
+                    elseif res.minute === nothing
                         res.minute = value
-                    elseif isnull(res.second)
+                    elseif res.second === nothing
                         res.second = value
-                    elseif isnull(res.millisecond)
+                    elseif res.millisecond === nothing
                         res.millisecond = value
                     elseif !fuzzy
                         error("Failed to parse date")
                     end
-                elseif length(digit) == 4 && isnull(res.hour) && isnull(res.minute)
+                elseif length(digit) == 4 && res.hour === nothing && res.minute === nothing
                     res.hour = Base.parse(Int64, digit[1:2])
                     res.minute = Base.parse(Int64, digit[3:4])
                 elseif !fuzzy
@@ -231,29 +231,29 @@ function DateParts(
                     push!(date_types, ALL)
                 end
 
-                index = nextind(str, index + endof(m.match) - 1)
+                index = nextind(str, index + lastindex(m.match) - 1)
             elseif (m = match(pertain_regex, str, index)) != nothing
                 # "Jan of 01": 01 is clearly the year
                 push!(date_values, Base.parse(Int64, m["year"]))
                 push!(date_types, YEAR)
-                index = nextind(str, index + endof(m.match) - 1)
+                index = nextind(str, index + lastindex(m.match) - 1)
             end
 
         elseif (m = match(ampm_regex, str, index)) != nothing
             # am/pm
-            isnull(res.hour) && error("Expected to find hour prior to the period indicator: $(m["key"])")
+            res.hour === nothing && error("Expected to find hour prior to the period indicator: $(m["key"])")
             period = AMPM[locale][lowercase(m["key"])]
-            res.hour = normalize_hour(get(res.hour), period)
-            index = nextind(str, index + endof(m.match) - 1)
+            res.hour = normalize_hour(res.hour, period)
+            index = nextind(str, index + lastindex(m.match) - 1)
 
-        elseif isnull(res.timezone) && (ext = extract_tz(str, index, tzmap=tzmap)) != nothing
+        elseif res.timezone === nothing && (ext = extract_tz(str, index, tzmap=tzmap)) != nothing
             res.timezone, index = ext
 
         else
             m = match(skip_regex, str, index)
 
             if m != nothing
-                index = nextind(str, index + endof(m.match) - 1)
+                index = nextind(str, index + lastindex(m.match) - 1)
             elseif !fuzzy
                 error("Failed to parse date")
             else
@@ -292,9 +292,9 @@ end
 
 function Date(dp::DateParts, default::Date=Date(current_year()))
     Date(
-        get(dp.year, year(default)),
-        get(dp.month, month(default)),
-        get(dp.day, day(default)),
+        something(dp.year, year(default)),
+        something(dp.month, month(default)),
+        something(dp.day, day(default)),
     )
 end
 
@@ -303,10 +303,10 @@ function DateTime(dp::DateParts, default::DateTime=DateTime(current_year());
 )
     if overflow
         periods = canonicalize(CompoundPeriod(Period[
-            Hour(get(dp.hour, hour(default))),
-            Minute(get(dp.minute, minute(default))),
-            Second(get(dp.second, second(default))),
-            Millisecond(get(dp.millisecond, millisecond(default))),
+            Hour(something(dp.hour, hour(default))),
+            Minute(something(dp.minute, minute(default))),
+            Second(something(dp.second, second(default))),
+            Millisecond(something(dp.millisecond, millisecond(default))),
         ])).periods
 
         weeks = Week(0)
@@ -332,13 +332,13 @@ function DateTime(dp::DateParts, default::DateTime=DateTime(current_year());
         end
     end
     datetime = DateTime(
-        get(dp.year, year(default)),
-        get(dp.month, month(default)),
-        get(dp.day, day(default)),
-        get(dp.hour, hour(default)),
-        get(dp.minute, minute(default)),
-        get(dp.second, second(default)),
-        get(dp.millisecond, millisecond(default)),
+        something(dp.year, year(default)),
+        something(dp.month, month(default)),
+        something(dp.day, day(default)),
+        something(dp.hour, hour(default)),
+        something(dp.minute, minute(default)),
+        something(dp.second, second(default)),
+        something(dp.millisecond, millisecond(default)),
     )
     if overflow
         datetime += days
@@ -353,6 +353,6 @@ function ZonedDateTime(dp::DateParts,
 )
     ZonedDateTime(
         DateTime(dp, DateTime(default), overflow=overflow),
-        get(dp.timezone, default.timezone),
+        something(dp.timezone, default.timezone),
     )
 end

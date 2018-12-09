@@ -19,9 +19,9 @@ include("util.jl")
 
 function tryparse(::Type{T}, str::AbstractString; kwargs...) where T <: TimeType
     try
-        return Nullable{T}(parse(T, str; kwargs...))
+        return Union{T, Nothing}(parse(T, str; kwargs...))
     catch
-        return Nullable{T}()
+        return Union{T, Nothing}()
     end
 end
 
